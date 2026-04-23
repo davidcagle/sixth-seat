@@ -8,9 +8,14 @@ import Foundation
 /// `GameError` and leave state untouched.
 ///
 /// Chips are deducted from `chipBalance` at the moment a wager is placed
-/// and returned (along with winnings) at resolution. `lastHandResult`
-/// holds the outcome of the most recently resolved hand and persists
-/// through `.handComplete` until `collectAndReset` clears it.
+/// and returned (along with winnings) at resolution. The balance lives
+/// in an injected `ChipStoreProtocol` so it persists across hands and
+/// app launches without this class knowing whether the backing store is
+/// UserDefaults, CloudKit, or an in-memory test double.
+///
+/// `lastHandResult` holds the outcome of the most recently resolved
+/// hand and persists through `.handComplete` until `collectAndReset`
+/// clears it.
 public final class GameState {
 
     // MARK: - Public state (read-only externally)
@@ -25,10 +30,22 @@ public final class GameState {
     public private(set) var tripsBet: Int
     public private(set) var playBet: Int
     public private(set) var playerFolded: Bool
-    public private(set) var chipBalance: Int
     public private(set) var lastHandResult: HandResult?
 
-    public init(startingChips: Int = 5000) {
+    /// The player's chip balance, read through from the backing store.
+    /// Writes happen internally via `chipStore.chipBalance`.
+    public var chipBalance: Int {
+        chipStore.chipBalance
+    }
+
+    // MARK: - Persistence
+
+    private let chipStore: ChipStoreProtocol
+
+    // MARK: - Init
+
+    public init(chipStore: ChipStoreProtocol) {
+        self.chipStore = chipStore
         self.phase = .awaitingBets
         self.deck = Deck()
         self.playerHoleCards = []
@@ -39,8 +56,13 @@ public final class GameState {
         self.tripsBet = 0
         self.playBet = 0
         self.playerFolded = false
-        self.chipBalance = startingChips
         self.lastHandResult = nil
+    }
+
+    /// Production default: uses `UserDefaultsChipStore`, so chip balance
+    /// and bonus flags persist across launches.
+    public convenience init() {
+        self.init(chipStore: UserDefaultsChipStore())
     }
 
     // MARK: - Action dispatch
@@ -87,7 +109,7 @@ public final class GameState {
         guard availableAfterRefund >= required else {
             return .failure(.insufficientChips(required: required, available: availableAfterRefund))
         }
-        chipBalance = availableAfterRefund - required
+        chipStore.chipBalance = availableAfterRefund - required
         anteBet = amount
         blindBet = amount
         return .success(())
@@ -101,7 +123,7 @@ public final class GameState {
         guard availableAfterRefund >= amount else {
             return .failure(.insufficientChips(required: amount, available: availableAfterRefund))
         }
-        chipBalance = availableAfterRefund - amount
+        chipStore.chipBalance = availableAfterRefund - amount
         tripsBet = amount
         return .success(())
     }
@@ -127,7 +149,7 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipBalance -= required
+        chipStore.chipBalance -= required
         playBet = required
         dealCommunity(count: 5)
         resolve()
@@ -147,7 +169,7 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipBalance -= required
+        chipStore.chipBalance -= required
         playBet = required
         dealCommunity(count: 2)
         resolve()
@@ -167,7 +189,7 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipBalance -= required
+        chipStore.chipBalance -= required
         playBet = required
         resolve()
         return .success(())
@@ -182,7 +204,7 @@ public final class GameState {
         let tripsOutcome = UTHRules.resolveTrips(player: playerHand)
         let tripsNet = BetResolution.netAmount(outcome: tripsOutcome, bet: Double(tripsBet))
 
-        chipBalance += tripsBet + Int(tripsNet.rounded())
+        chipStore.chipBalance += tripsBet + Int(tripsNet.rounded())
 
         lastHandResult = HandResult(
             playerHand: playerHand,
@@ -197,6 +219,7 @@ public final class GameState {
             playNet: 0,
             tripsNet: tripsNet
         )
+        chipStore.totalHandsPlayed += 1
         phase = .handComplete
         return .success(())
     }
@@ -220,12 +243,13 @@ public final class GameState {
         // Each wager returns (stake + net) to the chip stack: a win pays
         // 2× stake, a push pays 1× stake, a loss pays 0, and a Blind/Trips
         // bonus pays stake × (1 + multiplier).
-        chipBalance += anteBet  + Int(result.anteNet.rounded())
-        chipBalance += blindBet + Int(result.blindNet.rounded())
-        chipBalance += playBet  + Int(result.playNet.rounded())
-        chipBalance += tripsBet + Int(result.tripsNet.rounded())
+        chipStore.chipBalance += anteBet  + Int(result.anteNet.rounded())
+        chipStore.chipBalance += blindBet + Int(result.blindNet.rounded())
+        chipStore.chipBalance += playBet  + Int(result.playNet.rounded())
+        chipStore.chipBalance += tripsBet + Int(result.tripsNet.rounded())
 
         lastHandResult = result
+        chipStore.totalHandsPlayed += 1
         phase = .handComplete
     }
 

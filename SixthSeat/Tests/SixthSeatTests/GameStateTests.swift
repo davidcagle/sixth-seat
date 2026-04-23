@@ -4,11 +4,18 @@ import Testing
 @Suite("GameState")
 struct GameStateTests {
 
+    /// Every test uses an `InMemoryChipStore` so nothing leaks into the
+    /// real `UserDefaults` database.
+    private static func newGame(startingChips: Int = 5_000) -> (GameState, InMemoryChipStore) {
+        let store = InMemoryChipStore(chipBalance: startingChips)
+        return (GameState(chipStore: store), store)
+    }
+
     // MARK: - Initial state
 
     @Test("New game starts at .awaitingBets with 5000 chips and empty hands")
     func newGameInitialState() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         #expect(game.phase == .awaitingBets)
         #expect(game.chipBalance == 5000)
         #expect(game.anteBet == 0)
@@ -24,7 +31,7 @@ struct GameStateTests {
 
     @Test("Custom starting chip count is honored")
     func customStartingChips() {
-        let game = GameState(startingChips: 1234)
+        let (game, _) = Self.newGame(startingChips: 1234)
         #expect(game.chipBalance == 1234)
     }
 
@@ -32,7 +39,7 @@ struct GameStateTests {
 
     @Test("Placing Ante sets Blind to the same amount and deducts both")
     func anteSetsBlindAndDeducts() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         let result = game.perform(.placeAnte(amount: 10))
         #expect(result.isSuccess)
         #expect(game.anteBet == 10)
@@ -42,7 +49,7 @@ struct GameStateTests {
 
     @Test("Re-placing Ante refunds the previous Ante/Blind before deducting the new amount")
     func antePlacementIsRevisable() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.placeAnte(amount: 25))
         #expect(game.anteBet == 25)
@@ -52,7 +59,7 @@ struct GameStateTests {
 
     @Test("Ante of zero or less is rejected as invalidBetAmount")
     func anteMustBePositive() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         let result = game.perform(.placeAnte(amount: 0))
         guard case .failure(.invalidBetAmount) = result else {
             Issue.record("expected .invalidBetAmount, got \(result)")
@@ -62,7 +69,7 @@ struct GameStateTests {
 
     @Test("Ante that exceeds the chip balance is rejected as insufficientChips")
     func anteRespectsChipBalance() {
-        let game = GameState(startingChips: 30)
+        let (game, _) = Self.newGame(startingChips: 30)
         // Need 20 to cover ante=10 + blind=10 — fine.
         #expect(game.perform(.placeAnte(amount: 10)).isSuccess)
         // Need 40 to cover ante=20 + blind=20 — fail (only 30 starting; 20 still on table = 30 available).
@@ -77,7 +84,7 @@ struct GameStateTests {
 
     @Test("Placing Trips deducts the trips amount")
     func tripsPlacementDeducts() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeTrips(amount: 5))
         #expect(game.tripsBet == 5)
         #expect(game.chipBalance == 4995)
@@ -85,7 +92,7 @@ struct GameStateTests {
 
     @Test("Trips of zero or less is rejected as invalidBetAmount")
     func tripsMustBePositive() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         let result = game.perform(.placeTrips(amount: 0))
         guard case .failure(.invalidBetAmount) = result else {
             Issue.record("expected .invalidBetAmount, got \(result)")
@@ -97,7 +104,7 @@ struct GameStateTests {
 
     @Test("Cannot deal without an Ante placed")
     func cannotDealWithoutAnte() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         let result = game.perform(.deal)
         guard case .failure(.invalidBetAmount) = result else {
             Issue.record("expected .invalidBetAmount, got \(result)")
@@ -108,7 +115,7 @@ struct GameStateTests {
 
     @Test("Deal hands 2 cards to player and 2 to dealer and advances to .preFlopDecision")
     func dealAdvancesAndDistributesCards() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         let result = game.perform(.deal)
         #expect(result.isSuccess)
@@ -120,7 +127,7 @@ struct GameStateTests {
 
     @Test("Cannot place Ante after the deal")
     func cannotPlaceAnteAfterDeal() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.placeAnte(amount: 20))
@@ -133,7 +140,7 @@ struct GameStateTests {
 
     @Test("Cannot place Trips after the deal")
     func cannotPlaceTripsAfterDeal() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.placeTrips(amount: 5))
@@ -147,7 +154,7 @@ struct GameStateTests {
 
     @Test("Betting 4× pre-flop sets playBet to 4 × Ante and resolves the hand")
     func bet4xPreFlopResolvesHand() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.betPreFlop(multiplier: 4))
@@ -160,7 +167,7 @@ struct GameStateTests {
 
     @Test("Betting 3× pre-flop sets playBet to 3 × Ante and resolves the hand")
     func bet3xPreFlopResolvesHand() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.betPreFlop(multiplier: 3))
@@ -173,7 +180,7 @@ struct GameStateTests {
 
     @Test("Pre-flop multiplier other than 3 or 4 is rejected as invalidMultiplier")
     func invalidPreFlopMultiplier() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.betPreFlop(multiplier: 2))
@@ -191,7 +198,7 @@ struct GameStateTests {
     func preFlopBetRespectsChipBalance() {
         // Starting chips: 30. Ante 10 (deducts ante+blind = 20, leaves 10).
         // 4× pre-flop would require 40 — only 10 left.
-        let game = GameState(startingChips: 30)
+        let (game, _) = Self.newGame(startingChips: 30)
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.betPreFlop(multiplier: 4))
@@ -205,7 +212,7 @@ struct GameStateTests {
 
     @Test("Checking pre-flop deals the flop and advances to .postFlopDecision")
     func checkPreFlopDealsFlop() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.checkPreFlop)
@@ -220,7 +227,7 @@ struct GameStateTests {
 
     @Test("Betting post-flop sets playBet to 2 × Ante and resolves the hand")
     func betPostFlopResolves() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -234,7 +241,7 @@ struct GameStateTests {
 
     @Test("Checking post-flop deals turn+river and advances to .postRiverDecision")
     func checkPostFlopDealsTurnAndRiver() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -249,7 +256,7 @@ struct GameStateTests {
 
     @Test("Betting post-river sets playBet to 1 × Ante and resolves the hand")
     func betPostRiverResolves() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -263,7 +270,7 @@ struct GameStateTests {
 
     @Test("Folding post-river forfeits Ante and Blind, leaves Play unplaced, and advances to .handComplete")
     func foldPostRiver() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -294,7 +301,7 @@ struct GameStateTests {
         // player Trips win? That's flaky. Instead, verify via state machine:
         // run a fold and confirm tripsOutcome reflects the actual evaluation,
         // and chipBalance moved by exactly (tripsBet + tripsNet).
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.placeTrips(amount: 5))
         _ = game.perform(.deal)
@@ -314,7 +321,7 @@ struct GameStateTests {
 
     @Test("Resolution updates chipBalance by the sum of (stake + net) for every wager")
     func chipBalanceMatchesResolution() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.placeTrips(amount: 5))
         _ = game.perform(.deal)
@@ -336,7 +343,7 @@ struct GameStateTests {
 
     @Test("collectAndReset returns to .awaitingBets with empty hands and zero bets")
     func collectAndResetClearsHand() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.placeTrips(amount: 5))
         _ = game.perform(.deal)
@@ -364,7 +371,7 @@ struct GameStateTests {
 
     @Test("Folding pre-flop is rejected as illegalActionForPhase")
     func cannotFoldPreFlop() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.fold)
@@ -377,7 +384,7 @@ struct GameStateTests {
 
     @Test("Folding post-flop is rejected as illegalActionForPhase")
     func cannotFoldPostFlop() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -391,7 +398,7 @@ struct GameStateTests {
 
     @Test("checkPreFlop is illegal post-flop")
     func checkPreFlopIllegalAfterFlop() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.checkPreFlop)
@@ -404,7 +411,7 @@ struct GameStateTests {
 
     @Test("betPostRiver is illegal at .preFlopDecision")
     func betPostRiverIllegalPreFlop() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.betPostRiver)
@@ -416,7 +423,7 @@ struct GameStateTests {
 
     @Test("collectAndReset is illegal mid-hand")
     func collectAndResetIllegalMidHand() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.collectAndReset)
@@ -428,7 +435,7 @@ struct GameStateTests {
 
     @Test("Re-dealing after a hand completes requires collectAndReset first")
     func cannotDealAfterHandComplete() {
-        let game = GameState()
+        let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         _ = game.perform(.betPreFlop(multiplier: 4))
@@ -438,6 +445,48 @@ struct GameStateTests {
             return
         }
         #expect(phase == .handComplete)
+    }
+
+    // MARK: - Persistence integration (session 5)
+
+    @Test("totalHandsPlayed increments after each resolved hand")
+    func totalHandsPlayedIncrements() {
+        let store = InMemoryChipStore(chipBalance: 5_000)
+        let game = GameState(chipStore: store)
+        #expect(store.totalHandsPlayed == 0)
+
+        _ = game.perform(.placeAnte(amount: 10))
+        _ = game.perform(.deal)
+        _ = game.perform(.betPreFlop(multiplier: 4))
+        #expect(store.totalHandsPlayed == 1)
+
+        _ = game.perform(.collectAndReset)
+        _ = game.perform(.placeAnte(amount: 10))
+        _ = game.perform(.deal)
+        _ = game.perform(.checkPreFlop)
+        _ = game.perform(.checkPostFlop)
+        _ = game.perform(.fold)
+        #expect(store.totalHandsPlayed == 2)
+    }
+
+    @Test("chipBalance persists across a GameState lifecycle via the shared ChipStore")
+    func chipBalancePersistsAcrossLifecycles() {
+        let store = InMemoryChipStore(chipBalance: 5_000)
+
+        // Lifecycle 1: play and discard a hand.
+        do {
+            let game = GameState(chipStore: store)
+            _ = game.perform(.placeAnte(amount: 10))
+            _ = game.perform(.deal)
+            _ = game.perform(.betPreFlop(multiplier: 4))
+            _ = game.perform(.collectAndReset)
+        }
+        let balanceAfterFirstHand = store.chipBalance
+
+        // Lifecycle 2: a brand-new GameState backed by the same store
+        // should observe the balance from the first lifecycle.
+        let secondGame = GameState(chipStore: store)
+        #expect(secondGame.chipBalance == balanceAfterFirstHand)
     }
 }
 
