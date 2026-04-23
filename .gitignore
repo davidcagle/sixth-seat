@@ -3,3 +3,4 @@
 *.gslides
 .DS_Store
 .claude/worktrees/
+.build/
