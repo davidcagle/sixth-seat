@@ -1,0 +1,5 @@
+*.gdoc
+*.gsheet
+*.gslides
+.DS_Store
+.claude/worktrees/
