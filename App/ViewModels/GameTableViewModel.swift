@@ -28,6 +28,10 @@ final class GameTableViewModel {
     /// Only meaningful while `phase == .awaitingBets`.
     var stagedAnte: Int
 
+    /// Currently staged Trips side bet (0 = off). Committed to the engine
+    /// via `placeTrips` when the player taps DEAL.
+    private(set) var stagedTrips: Int
+
     // MARK: - Dependencies
 
     private let game: GameState
@@ -35,6 +39,9 @@ final class GameTableViewModel {
 
     /// Default ante increments the player can cycle through with +/-.
     let anteSteps: [Int] = [5, 10, 25, 50, 100, 250, 500, 1000]
+
+    /// Amounts the Trips zone cycles through on tap. Zero represents "off".
+    let tripsCycle: [Int] = [0, 5, 10, 25]
 
     // MARK: - Init
 
@@ -58,6 +65,7 @@ final class GameTableViewModel {
         self.lastHandResult = nil
         self.errorMessage = nil
         self.stagedAnte = 10
+        self.stagedTrips = 0
     }
 
     // MARK: - Derived display helpers
@@ -86,6 +94,19 @@ final class GameTableViewModel {
         phase == .awaitingBets && anteBet > 0
     }
 
+    /// Trips amount to render in the Trips bet zone. While placing bets we
+    /// show the staged value; once committed by `deal`, we show the engine
+    /// value (which stays put until the hand resolves and resets).
+    var displayedTripsBet: Int {
+        phase == .awaitingBets ? stagedTrips : tripsBet
+    }
+
+    /// Whether the Trips zone should be interactive. Only true while the
+    /// player is placing bets — once DEAL fires, the zone locks.
+    var isTripsZoneInteractive: Bool {
+        phase == .awaitingBets
+    }
+
     // MARK: - Intent handlers
 
     func incrementStagedAnte() {
@@ -108,11 +129,26 @@ final class GameTableViewModel {
         dispatch(.placeAnte(amount: amount))
     }
 
-    /// Commits the staged ante and immediately deals.
+    /// Advances the Trips side bet through off → $5 → $10 → $25 → off.
+    /// Unaffordable steps fall back to "off" so we never hit an engine
+    /// error mid-cycle. No-op outside `.awaitingBets`.
+    func cycleTripsBet() {
+        guard phase == .awaitingBets else { return }
+        let currentIndex = tripsCycle.firstIndex(of: stagedTrips) ?? 0
+        let nextIndex = (currentIndex + 1) % tripsCycle.count
+        let next = tripsCycle[nextIndex]
+        stagedTrips = (next == 0 || chipBalance >= next) ? next : 0
+    }
+
+    /// Commits the staged ante (and Trips, if any) and immediately deals.
     func deal() {
         if anteBet != stagedAnte {
             dispatch(.placeAnte(amount: stagedAnte))
             // If placing the ante failed we stop here.
+            guard errorMessage == nil else { return }
+        }
+        if stagedTrips > 0 && tripsBet != stagedTrips {
+            dispatch(.placeTrips(amount: stagedTrips))
             guard errorMessage == nil else { return }
         }
         dispatch(.deal)
@@ -144,6 +180,7 @@ final class GameTableViewModel {
 
     func newHand() {
         dispatch(.collectAndReset)
+        stagedTrips = 0
     }
 
     // MARK: - Dispatch + sync

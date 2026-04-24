@@ -14,7 +14,14 @@
       "Bash(xcodebuild test *)",
       "Bash(xcodebuild -list -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/thirsty-heisenberg-2225bb/SixthSeat.xcodeproj\")",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -configuration Debug build)",
-      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -configuration Debug test)"
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -configuration Debug test)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -list)",
+      "Bash(xcodebuild build *)",
+      "Bash(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' /Users/davidcagle/Library/Developer/Xcode/DerivedData/SixthSeat-hhnhysaqravbznggkbjnggwzbpbc/Build/Products/Debug-iphonesimulator/SixthSeatApp.app/Info.plist)",
+      "Bash(open -a Simulator)",
+      "Read(//tmp/**)",
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get position of window 1')",
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get size of window 1')"
     ]
   }
 }

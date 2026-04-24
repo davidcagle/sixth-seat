@@ -105,7 +105,12 @@ struct GameTableView: View {
 
     private var betZones: some View {
         HStack(spacing: 12) {
-            BetZoneView(label: "TRIPS", amount: viewModel.tripsBet)
+            BetZoneView(
+                label: "TRIPS",
+                amount: viewModel.displayedTripsBet,
+                isActive: viewModel.isTripsZoneInteractive,
+                onTap: viewModel.isTripsZoneInteractive ? { viewModel.cycleTripsBet() } : nil
+            )
             BetZoneView(label: "ANTE",  amount: viewModel.anteBet > 0 ? viewModel.anteBet : viewModel.stagedAnte,
                         isActive: viewModel.phase == .awaitingBets)
             BetZoneView(label: "BLIND", amount: viewModel.blindBet > 0 ? viewModel.blindBet : viewModel.stagedAnte)
