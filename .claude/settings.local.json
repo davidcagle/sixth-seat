@@ -11,7 +11,10 @@
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO clean build)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=macOS' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build)",
-      "Bash(xcodebuild test *)"
+      "Bash(xcodebuild test *)",
+      "Bash(xcodebuild -list -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/thirsty-heisenberg-2225bb/SixthSeat.xcodeproj\")",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -configuration Debug build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -configuration Debug test)"
     ]
   }
 }

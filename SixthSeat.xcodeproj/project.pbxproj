@@ -13,6 +13,12 @@
 		C000000000000000000004C1 /* Disclosures.plist in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000003B1 /* Disclosures.plist */; };
 		C000000000000000000005C1 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000005B1 /* SmokeTests.swift */; };
 		C000000000000000000006C1 /* SixthSeat in Frameworks */ = {isa = PBXBuildFile; productRef = E100000000000000000001E1 /* SixthSeat */; };
+		C000000000000000000007C1 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000009B1 /* CardView.swift */; };
+		C000000000000000000008C1 /* BetZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000AB1 /* BetZoneView.swift */; };
+		C000000000000000000009C1 /* ChipStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000BB1 /* ChipStackView.swift */; };
+		C00000000000000000000AC1 /* GameTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000CB1 /* GameTableView.swift */; };
+		C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000DB1 /* GameTableViewModel.swift */; };
+		C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000EB1 /* GameTableViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +40,12 @@
 		B000000000000000000006B1 /* SixthSeatApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SixthSeatApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B000000000000000000007B1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B000000000000000000008B1 /* SixthSeat */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SixthSeat; sourceTree = "<group>"; };
+		B000000000000000000009B1 /* CardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardView.swift; sourceTree = "<group>"; };
+		B00000000000000000000AB1 /* BetZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetZoneView.swift; sourceTree = "<group>"; };
+		B00000000000000000000BB1 /* ChipStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipStackView.swift; sourceTree = "<group>"; };
+		B00000000000000000000CB1 /* GameTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableView.swift; sourceTree = "<group>"; };
+		B00000000000000000000DB1 /* GameTableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModel.swift; sourceTree = "<group>"; };
+		B00000000000000000000EB1 /* GameTableViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +91,8 @@
 			children = (
 				B000000000000000000001B1 /* SixthSeatApp.swift */,
 				B000000000000000000002B1 /* ContentView.swift */,
+				A000000000000000000009A1 /* Views */,
+				A00000000000000000000AA1 /* ViewModels */,
 				B000000000000000000004B1 /* Assets.xcassets */,
 				B000000000000000000003B1 /* Disclosures.plist */,
 			);
@@ -89,8 +103,28 @@
 			isa = PBXGroup;
 			children = (
 				B000000000000000000005B1 /* SmokeTests.swift */,
+				B00000000000000000000EB1 /* GameTableViewModelTests.swift */,
 			);
 			path = AppTests;
+			sourceTree = "<group>";
+		};
+		A000000000000000000009A1 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B000000000000000000009B1 /* CardView.swift */,
+				B00000000000000000000AB1 /* BetZoneView.swift */,
+				B00000000000000000000BB1 /* ChipStackView.swift */,
+				B00000000000000000000CB1 /* GameTableView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000AA1 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000DB1 /* GameTableViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -203,6 +237,11 @@
 			files = (
 				C000000000000000000002C1 /* ContentView.swift in Sources */,
 				C000000000000000000001C1 /* SixthSeatApp.swift in Sources */,
+				C000000000000000000007C1 /* CardView.swift in Sources */,
+				C000000000000000000008C1 /* BetZoneView.swift in Sources */,
+				C000000000000000000009C1 /* ChipStackView.swift in Sources */,
+				C00000000000000000000AC1 /* GameTableView.swift in Sources */,
+				C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -211,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C000000000000000000005C1 /* SmokeTests.swift in Sources */,
+				C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
