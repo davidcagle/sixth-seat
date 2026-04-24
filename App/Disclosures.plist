@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EntertainmentOnly</key>
+	<string>This game is for entertainment only.</string>
+	<key>NoRealMoneyGambling</key>
+	<string>6th Seat does not offer real-money gambling or an opportunity to win real money or prizes.</string>
+	<key>PracticeDoesNotImplySuccess</key>
+	<string>Practice or success at this game does not imply future success at real-money gambling.</string>
+</dict>
+</plist>

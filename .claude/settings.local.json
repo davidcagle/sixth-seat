@@ -3,7 +3,15 @@
     "allow": [
       "Bash(xcodebuild -version)",
       "Bash(swift build *)",
-      "Bash(swift test *)"
+      "Bash(swift test *)",
+      "Bash(swift --version)",
+      "Bash(brew list *)",
+      "Bash(xcodebuild -list -project SixthSeat.xcodeproj)",
+      "Bash(xcrun simctl *)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO clean build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=macOS' -configuration Debug CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build)",
+      "Bash(xcodebuild test *)"
     ]
   }
 }
