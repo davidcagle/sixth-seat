@@ -21,7 +21,10 @@
       "Bash(open -a Simulator)",
       "Read(//tmp/**)",
       "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get position of window 1')",
-      "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get size of window 1')"
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get size of window 1')",
+      "Bash(/usr/libexec/PlistBuddy -c \"Print :CFBundleIdentifier\" \"/Users/davidcagle/Library/Developer/Xcode/DerivedData/SixthSeat-gnaqunshapxadqgjckooigrkhwco/Build/Products/Debug-iphonesimulator/SixthSeatApp.app/Info.plist\")",
+      "Bash(osascript -e 'tell application \"Simulator\" to activate')",
+      "Bash(osascript -e ' *)"
     ]
   }
 }

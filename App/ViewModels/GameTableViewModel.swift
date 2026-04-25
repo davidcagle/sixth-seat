@@ -32,6 +32,14 @@ final class GameTableViewModel {
     /// via `placeTrips` when the player taps DEAL.
     private(set) var stagedTrips: Int
 
+    /// Ante amount from the most recently resolved hand — `nil` until the
+    /// first hand completes. Drives the REBET action at `.handComplete`.
+    private(set) var lastAnteBet: Int?
+
+    /// Trips amount from the most recently resolved hand; 0 if Trips was
+    /// off on that hand. Only meaningful when `lastAnteBet != nil`.
+    private(set) var lastTripsBet: Int = 0
+
     // MARK: - Dependencies
 
     private let game: GameState
@@ -92,6 +100,13 @@ final class GameTableViewModel {
 
     var canDeal: Bool {
         phase == .awaitingBets && anteBet > 0
+    }
+
+    /// True when the player has a prior hand to repeat and can afford its
+    /// Ante (Blind auto-matches, so affordability is 2× the stored Ante).
+    var canRebet: Bool {
+        guard let ante = lastAnteBet else { return false }
+        return chipBalance >= ante * 2
     }
 
     /// Trips amount to render in the Trips bet zone. While placing bets we
@@ -183,6 +198,26 @@ final class GameTableViewModel {
         stagedTrips = 0
     }
 
+    /// Restores the previous hand's Ante (and Trips, if affordable) and
+    /// deals immediately. Intended as a one-tap replay from `.handComplete`.
+    /// If the prior Trips bet is no longer affordable after the Ante is
+    /// placed, Trips is skipped for this hand.
+    func rebet() {
+        guard let lastAnte = lastAnteBet else { return }
+        guard chipBalance >= lastAnte * 2 else {
+            errorMessage = "Not enough chips to rebet."
+            return
+        }
+        if phase == .handComplete {
+            dispatch(.collectAndReset)
+            guard errorMessage == nil else { return }
+        }
+        stagedAnte = lastAnte
+        let remainingAfterAnte = chipBalance - lastAnte * 2
+        stagedTrips = (lastTripsBet > 0 && remainingAfterAnte >= lastTripsBet) ? lastTripsBet : 0
+        deal()
+    }
+
     // MARK: - Dispatch + sync
 
     private func dispatch(_ action: PlayerAction) {
@@ -195,6 +230,7 @@ final class GameTableViewModel {
     }
 
     private func syncFromGame() {
+        let previousPhase = phase
         phase = game.phase
         chipBalance = game.chipBalance
         anteBet = game.anteBet
@@ -205,6 +241,14 @@ final class GameTableViewModel {
         dealerHoleCards = game.dealerHoleCards
         communityCards = game.communityCards
         lastHandResult = game.lastHandResult
+
+        // Snapshot the just-resolved wagers on the transition into
+        // `.handComplete`. The engine still holds `anteBet`/`tripsBet`
+        // at this point — they're only cleared by `collectAndReset`.
+        if previousPhase != .handComplete && game.phase == .handComplete {
+            lastAnteBet = game.anteBet
+            lastTripsBet = game.tripsBet
+        }
     }
 
     private func describe(_ error: GameError) -> String {

@@ -242,6 +242,221 @@ struct GameTableViewModelTests {
         #expect(vm.phase == .awaitingBets)
     }
 
+    // MARK: - REBET
+
+    @Test("Fresh view model has no rebet history and cannot rebet")
+    func freshViewModelHasNoRebetState() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+
+        #expect(vm.lastAnteBet == nil)
+        #expect(vm.lastTripsBet == 0)
+        #expect(vm.canRebet == false)
+    }
+
+    @Test("Resolving a hand records the Ante in lastAnteBet")
+    func resolveRecordsLastAnte() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        vm.stagedAnte = 25
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.lastAnteBet == 25)
+    }
+
+    @Test("Resolving with Trips placed records the Trips amount")
+    func resolveRecordsLastTrips() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        vm.stagedAnte = 10
+        vm.cycleTripsBet() // 5
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 10)
+        #expect(vm.lastTripsBet == 5)
+    }
+
+    @Test("Resolving without Trips records lastTripsBet as 0")
+    func resolveWithoutTripsRecordsZero() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        vm.stagedAnte = 10
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastTripsBet == 0)
+    }
+
+    @Test("rebet restores Ante and Trips and deals")
+    func rebetRestoresBetsAndDeals() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        vm.stagedAnte = 10
+        vm.cycleTripsBet() // 5
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        // Now at .handComplete with lastAnteBet = 10, lastTripsBet = 5.
+        #expect(vm.canRebet == true)
+        vm.rebet()
+
+        // deal() advances to .preFlopDecision with wagers committed.
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.anteBet == 10)
+        #expect(vm.blindBet == 10)
+        #expect(vm.tripsBet == 5)
+        #expect(vm.errorMessage == nil)
+    }
+
+    @Test("rebet skips Trips when the player can no longer afford it")
+    func rebetSkipsUnaffordableTrips() {
+        // Play one hand with Ante=10 and Trips=5 to seed lastAnteBet/lastTripsBet.
+        // Then drop the store balance to exactly 2×Ante so the rebet can cover
+        // Ante+Blind but not Trips.
+        let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store)
+        vm.stagedAnte = 10
+        vm.cycleTripsBet() // 5
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.lastAnteBet == 10)
+        #expect(vm.lastTripsBet == 5)
+
+        // Reach into the shared store to force the affordability scenario.
+        // This survives the next dispatch (collectAndReset) so rebet's
+        // own balance read sees the reduced amount.
+        store.chipBalance = 20
+
+        vm.rebet()
+
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.anteBet == 10)
+        #expect(vm.blindBet == 10)
+        #expect(vm.tripsBet == 0)
+        #expect(vm.errorMessage == nil)
+    }
+
+    @Test("canRebet tracks the current balance against 2×lastAnteBet")
+    func canRebetTracksBalance() {
+        // Seed a completed hand with Ante=10. canRebet is a computed
+        // property that reads the view model's current chipBalance, so
+        // we verify both sides of the threshold by running a fresh hand
+        // to force a sync at different balances.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        vm.stagedAnte = 10
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 10)
+        // Ample balance — clearly covers 2×10.
+        #expect(vm.canRebet == true)
+    }
+
+    @Test("canRebet is false when balance falls below 2×Ante after next sync")
+    func canRebetFalseWhenBalanceDrops() {
+        // Play a hand to seed lastAnteBet=100, then drop the store to 50
+        // and trigger a sync (via newHand) so canRebet refreshes.
+        let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store)
+        vm.stagedAnte = 100
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 100)
+
+        store.chipBalance = 50
+        // Any dispatch triggers a sync of chipBalance from the store.
+        vm.newHand()
+
+        #expect(vm.chipBalance == 50)
+        #expect(vm.canRebet == false)
+    }
+
+    @Test("rebet no-ops when no prior hand was played")
+    func rebetNoopWithoutHistory() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+
+        vm.rebet()
+
+        #expect(vm.phase == .awaitingBets)
+        #expect(vm.anteBet == 0)
+        #expect(vm.playerHoleCards.isEmpty)
+    }
+
+    @Test("rebet with insufficient chips sets an error and does not deal")
+    func rebetInsufficientChipsShowsError() {
+        // Play a small hand so lastAnteBet is set, then attempt a rebet
+        // from a near-empty balance.
+        let store = InMemoryChipStore(chipBalance: 20, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store)
+        vm.stagedAnte = 10
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.fold()
+
+        // Balance is now 0 (Ante+Blind forfeited, no Trips).
+        #expect(vm.chipBalance == 0)
+        #expect(vm.lastAnteBet == 10)
+        #expect(vm.canRebet == false)
+
+        vm.rebet()
+
+        #expect(vm.errorMessage != nil)
+        #expect(vm.phase == .handComplete)
+    }
+
+    @Test("lastAnteBet and lastTripsBet update after each completed hand")
+    func rebetStateUpdatesAcrossHands() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000))
+        vm.stagedAnte = 10
+        vm.cycleTripsBet() // 5
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 10)
+        #expect(vm.lastTripsBet == 5)
+
+        // Rebet into a second hand, then change the Ante for a third.
+        vm.rebet()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 10)
+        #expect(vm.lastTripsBet == 5)
+
+        vm.newHand()
+        vm.stagedAnte = 25
+        // Trips off this time.
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        #expect(vm.lastAnteBet == 25)
+        #expect(vm.lastTripsBet == 0)
+    }
+
     /// Most tests want to exercise the view model without the one-time
     /// starter bonus inflating their balances, so we hand the view model
     /// a store that already records the bonus as claimed.

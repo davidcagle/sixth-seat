@@ -235,7 +235,10 @@ struct GameTableView: View {
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(net > 0 ? .green : (net < 0 ? .red : .yellow))
             }
-            primaryButton("NEW HAND", enabled: true) { viewModel.newHand() }
+            if viewModel.canRebet {
+                primaryButton("REBET", enabled: true) { viewModel.rebet() }
+            }
+            mutedButton("NEW HAND") { viewModel.newHand() }
         }
     }
 
@@ -264,6 +267,20 @@ struct GameTableView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(Color.white.opacity(0.8), lineWidth: 1.5)
+                )
+        }
+    }
+
+    private func mutedButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(.white.opacity(0.75))
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
                 )
         }
     }
