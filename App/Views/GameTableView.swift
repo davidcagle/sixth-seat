@@ -169,10 +169,12 @@ struct GameTableView: View {
                     card: viewModel.playerHoleCards.indices.contains(0) ? viewModel.playerHoleCards[0] : nil,
                     faceDown: viewModel.isPlayerCardFaceDown(index: 0)
                 )
+                .id("player-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.playerHoleCards.indices.contains(1) ? viewModel.playerHoleCards[1] : nil,
                     faceDown: viewModel.isPlayerCardFaceDown(index: 1)
                 )
+                .id("player-card-\(viewModel.currentDealId)-1")
             }
             Text("YOU")
                 .font(.system(size: 11, weight: .bold))

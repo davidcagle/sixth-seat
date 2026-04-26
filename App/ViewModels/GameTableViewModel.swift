@@ -64,6 +64,15 @@ final class GameTableViewModel {
     /// still show the back of the card. Cleared on flip-completion.
     private(set) var playerCardsAwaitingFlip: Bool = false
 
+    /// Monotonic per-hand counter, incremented on each successful `deal()`.
+    /// Drives explicit `.id()` modifiers on the player hole-card views so
+    /// SwiftUI tears down and recreates the CardView on every new hand —
+    /// guarantees the new card starts in its initial face-down render
+    /// state instead of inheriting the previous hand's view (where
+    /// positional identity would otherwise let the old face-up rotation
+    /// leak into the new hand).
+    private(set) var currentDealId: Int = 0
+
     /// Balance the view should display *while animating* — distinct from
     /// `chipBalance` because the wager debits and payout credits happen on
     /// the engine before the chip motion completes. The view uses this so
@@ -254,6 +263,7 @@ final class GameTableViewModel {
         }
         dispatch(.deal)
         guard errorMessage == nil else { return }
+        currentDealId &+= 1
         playerCardsAwaitingFlip = true
         runAnimation { [weak self] token in
             await self?.animatePlayerHoleCards(token: token)
@@ -502,6 +512,19 @@ final class GameTableViewModel {
         guard isCurrent(token), playerHoleCards.count >= 2 else { return }
         animationStage = .dealingPlayer
         playerCardsAwaitingFlip = false
+
+        // Explicit yield BEFORE the first reveal. In the fresh-DEAL flow
+        // deal() runs from the Button's synchronous event handler, so
+        // SwiftUI flushes the post-deal face-down render before this
+        // Task body runs. In the REBET flow deal() is dispatched from a
+        // deferred Task, and without a yield this Task body runs back-to-
+        // back with that one — SwiftUI never gets to render the face-down
+        // state for card 0 (whose reveal happens immediately), so card 0
+        // appears face-up directly with no flip. Card 1 escapes that
+        // because its reveal is delayed by the 150 ms sleep below, which
+        // gives SwiftUI a render gap. The yield here equalizes the two.
+        await Task.yield()
+        guard isCurrent(token) else { return }
 
         reveal(playerHoleCards[0])
         await clock.sleep(milliseconds: 150)

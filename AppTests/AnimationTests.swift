@@ -279,6 +279,71 @@ struct AnimationTests {
         }
     }
 
+    // MARK: - Per-hand view identity
+
+    @Test("currentDealId starts at zero on a fresh view model")
+    func dealIdStartsAtZero() {
+        let vm = Self.makeVM()
+        #expect(vm.currentDealId == 0)
+    }
+
+    @Test("currentDealId increments on each successful deal")
+    func dealIdIncrementsOnDeal() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal(); await drainAnimations(); vm.skipToSettled()
+        #expect(vm.currentDealId == 1)
+    }
+
+    @Test("currentDealId increments across REBET so player CardViews receive a fresh .id() per hand")
+    func dealIdChangesOnRebet() async {
+        // The player-zone CardView in GameTableView binds its .id() to
+        // currentDealId so SwiftUI tears down the previous hand's view
+        // and creates a fresh one for each new hand. Without that,
+        // SwiftUI's positional identity reuses the prior face-up
+        // ZStack and the new card renders without a flip — the
+        // session-10b symptom.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+
+        let dealIdAfterFirstHand = vm.currentDealId
+        #expect(dealIdAfterFirstHand == 1)
+
+        vm.rebet()
+        await drainAnimations()
+
+        // The deferred deal() must have bumped currentDealId so that
+        // .id("player-card-\(currentDealId)-0/1") differs from the
+        // previous hand — forcing SwiftUI to recreate both player
+        // CardViews fresh.
+        #expect(vm.currentDealId == dealIdAfterFirstHand + 1)
+        #expect(vm.currentDealId != dealIdAfterFirstHand)
+    }
+
+    @Test("currentDealId does not change on collectAndReset (newHand)")
+    func dealIdStableOnNewHand() async {
+        // Only successful deals bump currentDealId — clearing the
+        // table should not, otherwise the next hand's id would be
+        // bumped twice for what the player perceives as one hand.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+
+        let dealIdBefore = vm.currentDealId
+        vm.newHand()
+        #expect(vm.currentDealId == dealIdBefore)
+
+        vm.deal(); await drainAnimations(); vm.skipToSettled()
+        #expect(vm.currentDealId == dealIdBefore + 1)
+    }
+
     // MARK: - Helpers
 
     /// Yields enough times for the @MainActor animation Task spawned by
