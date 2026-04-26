@@ -7,6 +7,10 @@ import SixthSeat
 /// - `card == nil`: empty slot (dashed outline)
 /// - `card != nil`, `faceDown == true`: dark back with "?" symbol
 /// - `card != nil`, `faceDown == false`: white face with rank + suit
+///
+/// When `faceDown` toggles from `true` to `false` under an animated
+/// state change, the card performs a Y-axis 3D flip — the back of the
+/// card and the face cross-fade at the 90° midpoint of the rotation.
 struct CardView: View {
     let card: Card?
     var faceDown: Bool = false
@@ -16,10 +20,24 @@ struct CardView: View {
     var body: some View {
         Group {
             if let card {
-                if faceDown {
+                ZStack {
+                    // Card back: rotated 0° when face-down, 180° when face-up
+                    // (so the back rotates "out of view" as the front rotates in).
                     faceDownBody
-                } else {
+                        .rotation3DEffect(
+                            .degrees(faceDown ? 0 : 180),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.4
+                        )
+                        .opacity(faceDown ? 1 : 0)
+
                     faceUpBody(card: card)
+                        .rotation3DEffect(
+                            .degrees(faceDown ? -180 : 0),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.4
+                        )
+                        .opacity(faceDown ? 0 : 1)
                 }
             } else {
                 emptySlot

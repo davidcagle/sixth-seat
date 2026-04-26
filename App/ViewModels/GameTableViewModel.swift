@@ -40,10 +40,63 @@ final class GameTableViewModel {
     /// off on that hand. Only meaningful when `lastAnteBet != nil`.
     private(set) var lastTripsBet: Int = 0
 
+    // MARK: - Animation state
+
+    /// Top-level stage of the card-and-chip motion choreography. The view
+    /// reads this to disable controls and to know which cards should be
+    /// face-down vs. face-up in the current frame.
+    private(set) var animationStage: AnimationStage = .idle
+
+    /// Current resolution motion for each bet zone. Drives BetZoneView's
+    /// pulse/slide/fade transforms.
+    private(set) var anteAnimation:  BetZoneAnimation = .none
+    private(set) var blindAnimation: BetZoneAnimation = .none
+    private(set) var playAnimation:  BetZoneAnimation = .none
+    private(set) var tripsAnimation: BetZoneAnimation = .none
+
+    /// Cards (by identity) that have already completed their face-up flip.
+    /// A card in this set should render face-up immediately on subsequent
+    /// frames — flips happen once per hand.
+    private(set) var revealedCards: Set<Card> = []
+
+    /// Player hole cards are dealt face-down then flipped — for one beat
+    /// after `deal()`, the engine has populated them but the view should
+    /// still show the back of the card. Cleared on flip-completion.
+    private(set) var playerCardsAwaitingFlip: Bool = false
+
+    /// Balance the view should display *while animating* — distinct from
+    /// `chipBalance` because the wager debits and payout credits happen on
+    /// the engine before the chip motion completes. The view uses this so
+    /// the displayed balance number arrives in sync with the chips.
+    private(set) var displayedBalance: Int
+
+    /// True while any choreography is in flight. Drives the global tap-to-
+    /// skip gesture and disables all action buttons. Tracked by token
+    /// rather than `animationStage` so the value flips synchronously the
+    /// moment a player intent dispatches — Tasks may not have run yet.
+    var isAnimating: Bool {
+        animationToken != settledToken
+    }
+
     // MARK: - Dependencies
 
     private let game: GameState
     private let chipStore: ChipStoreProtocol
+    private let clock: AnimationClock
+    /// When true, every choreography call settles synchronously on the
+    /// dispatching frame — used by engine-only unit tests that don't
+    /// want to drive the animation Task.
+    private let bypassAnimation: Bool
+
+    /// Token incremented on every new animation run. Tap-to-skip bumps it,
+    /// in-flight choreography checks it before each await — when the token
+    /// no longer matches the run started under, the choreography exits and
+    /// the snap-to-settled finalizer takes over.
+    private var animationToken: Int = 0
+    /// Last token whose choreography reached the finalized/settled state.
+    /// `isAnimating == (animationToken != settledToken)`.
+    private var settledToken: Int = 0
+    private var pendingFinalBalance: Int?
 
     /// Default ante increments the player can cycle through with +/-.
     let anteSteps: [Int] = [5, 10, 25, 50, 100, 250, 500, 1000]
@@ -53,16 +106,23 @@ final class GameTableViewModel {
 
     // MARK: - Init
 
-    init(chipStore: ChipStoreProtocol? = nil) {
+    init(
+        chipStore: ChipStoreProtocol? = nil,
+        clock: AnimationClock = RealAnimationClock(),
+        bypassAnimation: Bool = false
+    ) {
         let store = chipStore ?? InMemoryChipStore()
         // Grant starter bonus on first run — matches the production path
         // once UserDefaults persistence is wired in later.
         BonusLogic.applyStarterBonusIfEligible(store: store)
         self.chipStore = store
         self.game = GameState(chipStore: store)
+        self.clock = clock
+        self.bypassAnimation = bypassAnimation
 
         self.phase = .awaitingBets
         self.chipBalance = store.chipBalance
+        self.displayedBalance = store.chipBalance
         self.anteBet = 0
         self.blindBet = 0
         self.tripsBet = 0
@@ -94,8 +154,33 @@ final class GameTableViewModel {
     }
 
     var dealerCardsFaceDown: Bool {
-        // Reveal dealer cards once the hand is being/has been resolved.
-        phase != .handComplete
+        // Dealer cards stay face-down until the dealer-reveal flip lands.
+        // Once a card is in `revealedCards`, the per-card check flips it.
+        // This top-level flag stays true while any dealer card hasn't yet
+        // been revealed — used to start cards in the back-of-card state.
+        phase != .handComplete || dealerHoleCards.contains(where: { !revealedCards.contains($0) })
+    }
+
+    /// Whether a player hole card at `index` should render face-down on
+    /// this frame. Player cards are dealt face-down then flipped during
+    /// the `.dealingPlayer` choreography.
+    func isPlayerCardFaceDown(index: Int) -> Bool {
+        guard index < playerHoleCards.count else { return false }
+        return !revealedCards.contains(playerHoleCards[index])
+    }
+
+    /// Whether a community card at `index` should render face-down. The
+    /// engine populates communityCards before the flip plays out, so we
+    /// gate visibility on per-card flip state during reveal stages.
+    func isCommunityCardFaceDown(index: Int) -> Bool {
+        guard index < communityCards.count else { return false }
+        return !revealedCards.contains(communityCards[index])
+    }
+
+    /// Whether a dealer hole card at `index` should render face-down.
+    func isDealerCardFaceDown(index: Int) -> Bool {
+        guard index < dealerHoleCards.count else { return false }
+        return !revealedCards.contains(dealerHoleCards[index])
     }
 
     var canDeal: Bool {
@@ -157,6 +242,7 @@ final class GameTableViewModel {
 
     /// Commits the staged ante (and Trips, if any) and immediately deals.
     func deal() {
+        guard !isAnimating else { return }
         if anteBet != stagedAnte {
             dispatch(.placeAnte(amount: stagedAnte))
             // If placing the ante failed we stop here.
@@ -167,35 +253,80 @@ final class GameTableViewModel {
             guard errorMessage == nil else { return }
         }
         dispatch(.deal)
+        guard errorMessage == nil else { return }
+        playerCardsAwaitingFlip = true
+        runAnimation { [weak self] token in
+            await self?.animatePlayerHoleCards(token: token)
+            await self?.maybeAnimateHandResolution(token: token)
+        }
     }
 
     func betPreFlop(multiplier: Int) {
+        guard !isAnimating else { return }
         dispatch(.betPreFlop(multiplier: multiplier))
+        guard errorMessage == nil else { return }
+        // Pre-flop bet reveals all five community cards, then dealer + chips.
+        runAnimation { [weak self] token in
+            await self?.animateAllCommunity(token: token)
+            await self?.maybeAnimateHandResolution(token: token)
+        }
     }
 
     func checkPreFlop() {
+        guard !isAnimating else { return }
         dispatch(.checkPreFlop)
+        guard errorMessage == nil else { return }
+        // Pre-flop check reveals the flop and stops at .postFlopDecision.
+        runAnimation { [weak self] token in
+            await self?.animateFlop(token: token)
+        }
     }
 
     func betPostFlop() {
+        guard !isAnimating else { return }
         dispatch(.betPostFlop)
+        guard errorMessage == nil else { return }
+        // Post-flop bet reveals turn + river together, then resolves.
+        runAnimation { [weak self] token in
+            await self?.animateTurnAndRiver(token: token)
+            await self?.maybeAnimateHandResolution(token: token)
+        }
     }
 
     func checkPostFlop() {
+        guard !isAnimating else { return }
         dispatch(.checkPostFlop)
+        guard errorMessage == nil else { return }
+        // Post-flop check reveals turn + river, advances to .postRiverDecision.
+        runAnimation { [weak self] token in
+            await self?.animateTurnAndRiver(token: token)
+        }
     }
 
     func betPostRiver() {
+        guard !isAnimating else { return }
         dispatch(.betPostRiver)
+        guard errorMessage == nil else { return }
+        // No new cards revealed — straight to dealer flip + chip resolution.
+        runAnimation { [weak self] token in
+            await self?.maybeAnimateHandResolution(token: token)
+        }
     }
 
     func fold() {
+        guard !isAnimating else { return }
         dispatch(.fold)
+        guard errorMessage == nil else { return }
+        runAnimation { [weak self] token in
+            await self?.maybeAnimateHandResolution(token: token)
+        }
     }
 
     func newHand() {
+        guard !isAnimating else { return }
         dispatch(.collectAndReset)
         stagedTrips = 0
+        resetAnimationState()
     }
 
     /// Restores the previous hand's Ante (and Trips, if affordable) and
@@ -203,6 +334,7 @@ final class GameTableViewModel {
     /// If the prior Trips bet is no longer affordable after the Ante is
     /// placed, Trips is skipped for this hand.
     func rebet() {
+        guard !isAnimating else { return }
         guard let lastAnte = lastAnteBet else { return }
         guard chipBalance >= lastAnte * 2 else {
             errorMessage = "Not enough chips to rebet."
@@ -211,6 +343,7 @@ final class GameTableViewModel {
         if phase == .handComplete {
             dispatch(.collectAndReset)
             guard errorMessage == nil else { return }
+            resetAnimationState()
         }
         stagedAnte = lastAnte
         let remainingAfterAnte = chipBalance - lastAnte * 2
@@ -249,6 +382,13 @@ final class GameTableViewModel {
             lastAnteBet = game.anteBet
             lastTripsBet = game.tripsBet
         }
+
+        // While animating, the displayed balance lags the engine — the
+        // chip-resolution choreography updates it. Outside of animation,
+        // it tracks the engine immediately.
+        if !isAnimating {
+            displayedBalance = chipBalance
+        }
     }
 
     private func describe(_ error: GameError) -> String {
@@ -261,6 +401,252 @@ final class GameTableViewModel {
             return reason
         case .invalidMultiplier(let given, let allowed):
             return "Bet \(given)× not allowed. Use \(allowed.map(String.init).joined(separator: " or "))×."
+        }
+    }
+
+    // MARK: - Animation choreography
+
+    /// Skips any in-flight animation and snaps to the fully-settled state:
+    /// every dealt card face-up, all bet zone motions complete, displayed
+    /// balance synced to the engine. Safe to call when nothing is running.
+    func skipToSettled() {
+        guard isAnimating else { return }
+        animationToken += 1  // invalidates any in-flight choreography
+        finalizeSettledState()
+    }
+
+    private func resetAnimationState() {
+        animationStage = .idle
+        anteAnimation = .none
+        blindAnimation = .none
+        playAnimation = .none
+        tripsAnimation = .none
+        revealedCards.removeAll()
+        playerCardsAwaitingFlip = false
+        pendingFinalBalance = nil
+        displayedBalance = chipBalance
+        settledToken = animationToken
+    }
+
+    private func finalizeSettledState() {
+        // Mark every dealt card as revealed so face-up renders win out.
+        for card in playerHoleCards { revealedCards.insert(card) }
+        for card in communityCards  { revealedCards.insert(card) }
+        if phase == .handComplete {
+            for card in dealerHoleCards { revealedCards.insert(card) }
+        }
+        playerCardsAwaitingFlip = false
+        anteAnimation = .none
+        blindAnimation = .none
+        playAnimation = .none
+        tripsAnimation = .none
+        if let final = pendingFinalBalance {
+            displayedBalance = final
+            pendingFinalBalance = nil
+        } else {
+            displayedBalance = chipBalance
+        }
+        animationStage = phase == .handComplete ? .settled : .idle
+        settledToken = animationToken
+    }
+
+    /// Spawns a Task that runs `body` against a fresh animation token. If
+    /// the token is bumped mid-flight (skip-to-settled), `body` should
+    /// short-circuit — every choreography helper checks via `isCurrent`.
+    /// When the view model is in bypass mode, skips the body entirely and
+    /// jumps to the settled state synchronously.
+    private func runAnimation(_ body: @MainActor @escaping (_ token: Int) async -> Void) {
+        if bypassAnimation {
+            finalizeSettledState()
+            return
+        }
+        animationToken += 1
+        let token = animationToken
+        Task { @MainActor in
+            await body(token)
+            // If we still own this run (no skip happened), settle cleanly.
+            if self.animationToken == token {
+                self.finalizeSettledState()
+            }
+        }
+    }
+
+    private func isCurrent(_ token: Int) -> Bool {
+        animationToken == token
+    }
+
+    private func reveal(_ card: Card) {
+        revealedCards.insert(card)
+    }
+
+    /// Player-deal flip: card 1 starts at 0ms (300ms), card 2 at 150ms (300ms).
+    /// Total ~450ms.
+    private func animatePlayerHoleCards(token: Int) async {
+        guard isCurrent(token), playerHoleCards.count >= 2 else { return }
+        animationStage = .dealingPlayer
+        playerCardsAwaitingFlip = false
+
+        reveal(playerHoleCards[0])
+        await clock.sleep(milliseconds: 150)
+        guard isCurrent(token) else { return }
+        reveal(playerHoleCards[1])
+        await clock.sleep(milliseconds: 300) // card 2's flip window
+    }
+
+    /// Flop: 200ms pause, then three cards staggered 200ms apart, 250ms each.
+    private func animateFlop(token: Int) async {
+        guard isCurrent(token), communityCards.count >= 3 else { return }
+        animationStage = .revealingFlop
+
+        await clock.sleep(milliseconds: 200) // burn pause
+        guard isCurrent(token) else { return }
+
+        reveal(communityCards[0])
+        await clock.sleep(milliseconds: 200)
+        guard isCurrent(token) else { return }
+
+        reveal(communityCards[1])
+        await clock.sleep(milliseconds: 200)
+        guard isCurrent(token) else { return }
+
+        reveal(communityCards[2])
+        await clock.sleep(milliseconds: 250) // final flip duration
+    }
+
+    /// Turn + River together: 200ms pause, two cards staggered 200ms apart.
+    private func animateTurnAndRiver(token: Int) async {
+        guard isCurrent(token), communityCards.count >= 5 else { return }
+        animationStage = .revealingTurn
+
+        await clock.sleep(milliseconds: 200)
+        guard isCurrent(token) else { return }
+
+        reveal(communityCards[3])
+        await clock.sleep(milliseconds: 200)
+        guard isCurrent(token) else { return }
+
+        animationStage = .revealingRiver
+        reveal(communityCards[4])
+        await clock.sleep(milliseconds: 250)
+    }
+
+    /// All five community cards at once: 200ms pause, then 5 staggered flips
+    /// 150ms apart, 250ms each.
+    private func animateAllCommunity(token: Int) async {
+        guard isCurrent(token), communityCards.count >= 5 else { return }
+        animationStage = .revealingFlopTurnRiver
+
+        await clock.sleep(milliseconds: 200)
+        for i in 0..<5 {
+            guard isCurrent(token) else { return }
+            reveal(communityCards[i])
+            if i < 4 {
+                await clock.sleep(milliseconds: 150)
+            } else {
+                await clock.sleep(milliseconds: 250)
+            }
+        }
+    }
+
+    /// Dealer reveal: card 1 at 0ms (250ms), card 2 at 200ms (250ms).
+    private func animateDealerHoleCards(token: Int) async {
+        guard isCurrent(token), dealerHoleCards.count >= 2 else { return }
+        animationStage = .revealingDealer
+
+        reveal(dealerHoleCards[0])
+        await clock.sleep(milliseconds: 200)
+        guard isCurrent(token) else { return }
+        reveal(dealerHoleCards[1])
+        await clock.sleep(milliseconds: 250) // final flip duration
+    }
+
+    /// Wraps the dealer reveal + chip resolution chain. Only runs if the
+    /// engine reached `.handComplete` on the dispatched action — checks +
+    /// pre-flop bets and folds all qualify.
+    private func maybeAnimateHandResolution(token: Int) async {
+        guard isCurrent(token), phase == .handComplete else { return }
+        await animateDealerHoleCards(token: token)
+        guard isCurrent(token) else { return }
+        await clock.sleep(milliseconds: 100) // brief beat before chips move
+        guard isCurrent(token) else { return }
+        await animateChipResolution(token: token)
+    }
+
+    private func animateChipResolution(token: Int) async {
+        guard isCurrent(token), let result = lastHandResult else { return }
+        animationStage = .resolvingChips
+
+        let anteOutcome  = BetZoneOutcome.from(outcome: result.anteOutcome,  stake: anteBet)
+        let blindOutcome = BetZoneOutcome.from(outcome: result.blindOutcome, stake: blindBet)
+        let playOutcome  = BetZoneOutcome.from(outcome: result.playOutcome,  stake: playBet)
+        let tripsOutcome = BetZoneOutcome.from(outcome: result.tripsOutcome, stake: tripsBet)
+
+        // Snapshot the engine's current balance — that's where the displayed
+        // value lands once chips arrive at the tray. Until then the view
+        // continues to show the pre-resolution number.
+        pendingFinalBalance = chipBalance
+
+        // Open all four zones into their motion phase simultaneously so the
+        // staggered durations themselves provide visual rhythm.
+        applyZoneAnimation(zone: .ante,  outcome: anteOutcome,  phase: .pulsing)
+        applyZoneAnimation(zone: .blind, outcome: blindOutcome, phase: .pulsing)
+        applyZoneAnimation(zone: .play,  outcome: playOutcome,  phase: .pulsing)
+        applyZoneAnimation(zone: .trips, outcome: tripsOutcome, phase: .pulsing)
+
+        await clock.sleep(milliseconds: 150) // pulse / win-match window
+        guard isCurrent(token) else { return }
+
+        applyZoneAnimation(zone: .ante,  outcome: anteOutcome,  phase: .slide)
+        applyZoneAnimation(zone: .blind, outcome: blindOutcome, phase: .slide)
+        applyZoneAnimation(zone: .play,  outcome: playOutcome,  phase: .slide)
+        applyZoneAnimation(zone: .trips, outcome: tripsOutcome, phase: .slide)
+
+        // Slide window — long enough for the longest single-zone duration
+        // (~700-800ms) while keeping things snappy.
+        await clock.sleep(milliseconds: 550)
+        guard isCurrent(token) else { return }
+
+        // Balance "lands" — animate the number to the final value.
+        if let final = pendingFinalBalance {
+            displayedBalance = final
+        }
+        // Hold a beat for the number animation to land before settling.
+        await clock.sleep(milliseconds: 150)
+    }
+
+    private enum Zone { case ante, blind, play, trips }
+    private enum AnimPhase { case pulsing, slide }
+
+    private func applyZoneAnimation(zone: Zone, outcome: BetZoneOutcome, phase: AnimPhase) {
+        let value: BetZoneAnimation
+        switch (outcome, phase) {
+        case (.noBet, _):           value = .none
+        case (.push, .pulsing):     value = .pulsing
+        case (.push, .slide):       value = .slidingDown
+        case (.win,  .pulsing):     value = .winMatched
+        case (.win,  .slide):       value = .slidingDown
+        case (.loss, .pulsing):     value = .none // losses don't pulse
+        case (.loss, .slide):       value = .slidingUp
+        }
+        switch zone {
+        case .ante:  anteAnimation  = value
+        case .blind: blindAnimation = value
+        case .play:  playAnimation  = value
+        case .trips: tripsAnimation = value
+        }
+    }
+
+    // MARK: - Outcome inspection (for tests + view)
+
+    /// Public outcome for each bet zone in the most recently resolved hand.
+    /// Returns `.noBet` if the hand isn't resolved or the zone had no stake.
+    func zoneOutcome(_ zone: BetZoneIdentifier) -> BetZoneOutcome {
+        guard let result = lastHandResult else { return .noBet }
+        switch zone {
+        case .ante:  return BetZoneOutcome.from(outcome: result.anteOutcome,  stake: anteBet)
+        case .blind: return BetZoneOutcome.from(outcome: result.blindOutcome, stake: blindBet)
+        case .play:  return BetZoneOutcome.from(outcome: result.playOutcome,  stake: playBet)
+        case .trips: return BetZoneOutcome.from(outcome: result.tripsOutcome, stake: tripsBet)
         }
     }
 

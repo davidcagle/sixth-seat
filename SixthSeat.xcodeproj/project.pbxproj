@@ -19,6 +19,8 @@
 		C00000000000000000000AC1 /* GameTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000CB1 /* GameTableView.swift */; };
 		C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000DB1 /* GameTableViewModel.swift */; };
 		C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000EB1 /* GameTableViewModelTests.swift */; };
+		C00000000000000000000DC1 /* AnimationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000FB1 /* AnimationModel.swift */; };
+		C00000000000000000000EC1 /* AnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000010B1 /* AnimationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +48,8 @@
 		B00000000000000000000CB1 /* GameTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableView.swift; sourceTree = "<group>"; };
 		B00000000000000000000DB1 /* GameTableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModel.swift; sourceTree = "<group>"; };
 		B00000000000000000000EB1 /* GameTableViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModelTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000FB1 /* AnimationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationModel.swift; sourceTree = "<group>"; };
+		B0000000000000000000010B1 /* AnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +108,7 @@
 			children = (
 				B000000000000000000005B1 /* SmokeTests.swift */,
 				B00000000000000000000EB1 /* GameTableViewModelTests.swift */,
+				B0000000000000000000010B1 /* AnimationTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -123,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000DB1 /* GameTableViewModel.swift */,
+				B00000000000000000000FB1 /* AnimationModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -242,6 +248,7 @@
 				C000000000000000000009C1 /* ChipStackView.swift in Sources */,
 				C00000000000000000000AC1 /* GameTableView.swift in Sources */,
 				C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */,
+				C00000000000000000000DC1 /* AnimationModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +258,7 @@
 			files = (
 				C000000000000000000005C1 /* SmokeTests.swift in Sources */,
 				C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */,
+				C00000000000000000000EC1 /* AnimationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

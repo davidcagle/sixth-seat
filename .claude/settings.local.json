@@ -24,7 +24,12 @@
       "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get size of window 1')",
       "Bash(/usr/libexec/PlistBuddy -c \"Print :CFBundleIdentifier\" \"/Users/davidcagle/Library/Developer/Xcode/DerivedData/SixthSeat-gnaqunshapxadqgjckooigrkhwco/Build/Products/Debug-iphonesimulator/SixthSeatApp.app/Info.plist\")",
       "Bash(osascript -e 'tell application \"Simulator\" to activate')",
-      "Bash(osascript -e ' *)"
+      "Bash(osascript -e ' *)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -configuration Debug build)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

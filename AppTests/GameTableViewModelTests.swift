@@ -9,7 +9,7 @@ struct GameTableViewModelTests {
     @Test("Fresh view model applies starter bonus to empty store")
     func freshViewModelGrantsStarterBonus() {
         let store = InMemoryChipStore()
-        let vm = GameTableViewModel(chipStore: store)
+        let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
 
         #expect(vm.chipBalance == BonusLogic.starterBonusAmount)
         #expect(vm.phase == .awaitingBets)
@@ -19,7 +19,7 @@ struct GameTableViewModelTests {
 
     @Test("placeAnte updates the view model's anteBet and blindBet")
     func placeAnteUpdatesWagers() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.placeAnte(amount: 25)
 
@@ -31,7 +31,7 @@ struct GameTableViewModelTests {
 
     @Test("deal() populates hole cards and advances phase")
     func dealPopulatesHoleCards() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
 
         vm.deal()
@@ -44,7 +44,7 @@ struct GameTableViewModelTests {
 
     @Test("Illegal action sets errorMessage and leaves state untouched")
     func illegalActionSetsError() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         // betPreFlop is illegal at .awaitingBets.
         vm.betPreFlop(multiplier: 3)
@@ -56,7 +56,7 @@ struct GameTableViewModelTests {
 
     @Test("Insufficient-chips failure surfaces in errorMessage")
     func insufficientChipsSurfacesError() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5), bypassAnimation: true)
 
         // Blind auto-matches Ante, so an ante of 10 needs 20 chips.
         vm.placeAnte(amount: 10)
@@ -67,7 +67,7 @@ struct GameTableViewModelTests {
 
     @Test("Full hand resolution updates lastHandResult and balance")
     func fullHandResolutionUpdatesResult() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
 
         vm.deal()
@@ -83,7 +83,7 @@ struct GameTableViewModelTests {
 
     @Test("newHand resets to awaitingBets with cleared state")
     func newHandResetsState() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
 
         vm.deal()
@@ -101,7 +101,7 @@ struct GameTableViewModelTests {
 
     @Test("Staged ante cycles through steps via increment/decrement")
     func stagedAnteIncrementDecrement() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
         vm.stagedAnte = 10
 
         vm.incrementStagedAnte()
@@ -114,7 +114,7 @@ struct GameTableViewModelTests {
 
     @Test("formattedBalance uses currency formatting")
     func formattedBalanceUsesCommas() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000), bypassAnimation: true)
 
         let formatted = vm.formattedBalance
         #expect(formatted.contains("5,000"))
@@ -124,7 +124,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips from off places $5")
     func cycleTripsFromOffPlacesFive() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.cycleTripsBet()
 
@@ -134,7 +134,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips from $5 advances to $10")
     func cycleTripsAdvancesToTen() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.cycleTripsBet() // 5
         vm.cycleTripsBet() // 10
@@ -144,7 +144,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips from $10 advances to $25")
     func cycleTripsAdvancesToTwentyFive() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.cycleTripsBet() // 5
         vm.cycleTripsBet() // 10
@@ -155,7 +155,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips from $25 clears back to off")
     func cycleTripsWrapsToOff() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.cycleTripsBet() // 5
         vm.cycleTripsBet() // 10
@@ -168,7 +168,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips does not affect Ante or Blind")
     func cycleTripsIndependentOfAnteAndBlind() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.placeAnte(amount: 25)
 
         vm.cycleTripsBet()
@@ -181,7 +181,7 @@ struct GameTableViewModelTests {
     @Test("Cycling Trips skips an unaffordable step to off")
     func cycleTripsSkipsUnaffordableToOff() {
         // 15 chips: $5 OK, $10 OK, $25 unaffordable → should skip to off.
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 15))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 15), bypassAnimation: true)
 
         vm.cycleTripsBet()
         #expect(vm.stagedTrips == 5)
@@ -196,7 +196,7 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips after the deal has no effect")
     func cycleTripsAfterDealIsNoOp() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // staged Trips = 5
         vm.deal()
@@ -214,7 +214,7 @@ struct GameTableViewModelTests {
 
     @Test("Staged Trips is committed to the engine on deal")
     func dealCommitsStagedTrips() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
 
@@ -227,7 +227,7 @@ struct GameTableViewModelTests {
 
     @Test("newHand clears staged Trips for the next hand")
     func newHandClearsStagedTrips() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
         vm.deal()
@@ -246,7 +246,7 @@ struct GameTableViewModelTests {
 
     @Test("Fresh view model has no rebet history and cannot rebet")
     func freshViewModelHasNoRebetState() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         #expect(vm.lastAnteBet == nil)
         #expect(vm.lastTripsBet == 0)
@@ -255,7 +255,7 @@ struct GameTableViewModelTests {
 
     @Test("Resolving a hand records the Ante in lastAnteBet")
     func resolveRecordsLastAnte() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 25
 
         vm.deal()
@@ -269,7 +269,7 @@ struct GameTableViewModelTests {
 
     @Test("Resolving with Trips placed records the Trips amount")
     func resolveRecordsLastTrips() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
 
@@ -284,7 +284,7 @@ struct GameTableViewModelTests {
 
     @Test("Resolving without Trips records lastTripsBet as 0")
     func resolveWithoutTripsRecordsZero() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
 
         vm.deal()
@@ -297,7 +297,7 @@ struct GameTableViewModelTests {
 
     @Test("rebet restores Ante and Trips and deals")
     func rebetRestoresBetsAndDeals() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
         vm.deal()
@@ -323,7 +323,7 @@ struct GameTableViewModelTests {
         // Then drop the store balance to exactly 2×Ante so the rebet can cover
         // Ante+Blind but not Trips.
         let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store)
+        let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
         vm.deal()
@@ -355,7 +355,7 @@ struct GameTableViewModelTests {
         // property that reads the view model's current chipBalance, so
         // we verify both sides of the threshold by running a fresh hand
         // to force a sync at different balances.
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.deal()
         vm.checkPreFlop()
@@ -372,7 +372,7 @@ struct GameTableViewModelTests {
         // Play a hand to seed lastAnteBet=100, then drop the store to 50
         // and trigger a sync (via newHand) so canRebet refreshes.
         let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store)
+        let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
         vm.stagedAnte = 100
         vm.deal()
         vm.checkPreFlop()
@@ -391,7 +391,7 @@ struct GameTableViewModelTests {
 
     @Test("rebet no-ops when no prior hand was played")
     func rebetNoopWithoutHistory() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 1_000), bypassAnimation: true)
 
         vm.rebet()
 
@@ -405,7 +405,7 @@ struct GameTableViewModelTests {
         // Play a small hand so lastAnteBet is set, then attempt a rebet
         // from a near-empty balance.
         let store = InMemoryChipStore(chipBalance: 20, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store)
+        let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
         vm.stagedAnte = 10
         vm.deal()
         vm.checkPreFlop()
@@ -425,7 +425,7 @@ struct GameTableViewModelTests {
 
     @Test("lastAnteBet and lastTripsBet update after each completed hand")
     func rebetStateUpdatesAcrossHands() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000))
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000), bypassAnimation: true)
         vm.stagedAnte = 10
         vm.cycleTripsBet() // 5
         vm.deal()
