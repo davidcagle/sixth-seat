@@ -1,11 +1,6 @@
-*.gdoc
-*.gsheet
-*.gslides
 .DS_Store
-.claude/worktrees/
+.claude/
 .build/
-
-# Xcode user state (personal IDE settings, not for version control)
 xcuserdata/
 *.xcuserstate
 project.xcworkspace/xcuserdata/
