@@ -348,7 +348,24 @@ final class GameTableViewModel {
         stagedAnte = lastAnte
         let remainingAfterAnte = chipBalance - lastAnte * 2
         stagedTrips = (lastTripsBet > 0 && remainingAfterAnte >= lastTripsBet) ? lastTripsBet : 0
-        deal()
+
+        if bypassAnimation {
+            deal()
+        } else {
+            // Defer deal() so SwiftUI renders the cleared state
+            // (revealedCards = {}, playerHoleCards = []) before the new
+            // cards arrive. Without this gap the synchronous
+            // {oldHandCards} → {} mutation of revealedCards above
+            // fires the top-level .animation(value: revealedCards)
+            // modifier against the just-dealt new cards — their
+            // faceDown flips false → true under that implicit
+            // animation, then collides with the deal-flip choreography
+            // (left card no-flips, right card double-flips
+            // face-up → face-down → face-up).
+            Task { @MainActor [weak self] in
+                self?.deal()
+            }
+        }
     }
 
     // MARK: - Dispatch + sync

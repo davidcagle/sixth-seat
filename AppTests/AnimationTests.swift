@@ -232,6 +232,53 @@ struct AnimationTests {
         #expect(vm.tripsAnimation == .none)
     }
 
+    // MARK: - REBET flip parity
+
+    @Test("rebet defers the deal so player hole cards begin face-down with a full flip, identical to fresh deal")
+    func rebetFlipMatchesFreshDeal() async {
+        // Reproduces the session-10a bug: rebet() ran collectAndReset +
+        // resetAnimationState + deal() in one synchronous block, so the
+        // {oldHandCards} → {} mutation of revealedCards fired the
+        // top-level .animation(value: revealedCards) modifier against
+        // the freshly-dealt new cards. The fix defers deal() to a
+        // separate MainActor tick — so AFTER rebet's sync portion
+        // returns, the engine and animation state must be cleared
+        // (cards empty, revealedCards empty) and the new deal must
+        // not have happened yet.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+
+        #expect(vm.phase == .handComplete)
+        #expect(!vm.revealedCards.isEmpty)
+        #expect(vm.canRebet)
+
+        vm.rebet()
+        // Sync portion of rebet has run; the deferred deal() has not.
+        // This is the render gap that lets SwiftUI draw the cleared
+        // state before the new cards arrive.
+        #expect(vm.phase == .awaitingBets)
+        #expect(vm.playerHoleCards.isEmpty)
+        #expect(vm.revealedCards.isEmpty)
+
+        // Drain the deferred deal() Task plus its inner flip Task.
+        await drainAnimations()
+
+        // Now in the dealt + flipped state — same end state as a fresh
+        // deal() call: both hole cards face-up, both in revealedCards.
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.playerHoleCards.count == 2)
+        #expect(vm.isPlayerCardFaceDown(index: 0) == false)
+        #expect(vm.isPlayerCardFaceDown(index: 1) == false)
+        for card in vm.playerHoleCards {
+            #expect(vm.revealedCards.contains(card))
+        }
+    }
+
     // MARK: - Helpers
 
     /// Yields enough times for the @MainActor animation Task spawned by
