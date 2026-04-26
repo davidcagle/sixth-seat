@@ -25,6 +25,8 @@ struct GameTableView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 12)
+
+            ceremonyOverlay
         }
         // Tap anywhere on the felt while animating to snap to the settled
         // state. The gesture sits behind interactive controls — buttons
@@ -46,6 +48,26 @@ struct GameTableView: View {
         .animation(.easeInOut(duration: 0.20), value: viewModel.playAnimation)
         .animation(.easeInOut(duration: 0.20), value: viewModel.tripsAnimation)
         .animation(.easeInOut(duration: 0.40), value: viewModel.displayedBalance)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.currentCeremony)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.ceremonyAdvanceEnabled)
+    }
+
+    // MARK: - Ceremony overlay
+
+    @ViewBuilder
+    private var ceremonyOverlay: some View {
+        if let ceremony = viewModel.currentCeremony {
+            switch viewModel.animationStage {
+            case .jackpotCeremony:
+                JackpotCeremonyView(state: ceremony, advanceEnabled: viewModel.ceremonyAdvanceEnabled)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            case .ceremony:
+                CeremonyView(state: ceremony, isBigTier: ceremony.effectiveTier == .big)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            default:
+                EmptyView()
+            }
+        }
     }
 
     // MARK: - Status bar

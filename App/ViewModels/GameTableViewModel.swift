@@ -79,6 +79,16 @@ final class GameTableViewModel {
     /// the displayed balance number arrives in sync with the chips.
     private(set) var displayedBalance: Int
 
+    /// Active ceremony state, or `nil` when no ceremony is on screen.
+    /// Drives the Tier 2-4 overlay views.
+    private(set) var currentCeremony: CeremonyState?
+
+    /// Tier 4 only. False during the 2500ms locked-in display window —
+    /// taps are ignored. Flips true once the lock-in expires; from there
+    /// either a tap or the 1500ms auto-advance timeout proceeds to chip
+    /// resolution.
+    private(set) var ceremonyAdvanceEnabled: Bool = false
+
     /// True while any choreography is in flight. Drives the global tap-to-
     /// skip gesture and disables all action buttons. Tracked by token
     /// rather than `animationStage` so the value flips synchronously the
@@ -436,8 +446,15 @@ final class GameTableViewModel {
     /// Skips any in-flight animation and snaps to the fully-settled state:
     /// every dealt card face-up, all bet zone motions complete, displayed
     /// balance synced to the engine. Safe to call when nothing is running.
+    ///
+    /// During a Tier 4 jackpot ceremony's first 2500ms (the locked-in
+    /// display window), taps are silently ignored to prevent accidental
+    /// skips on the way in (decision 6).
     func skipToSettled() {
         guard isAnimating else { return }
+        if animationStage == .jackpotCeremony && !ceremonyAdvanceEnabled {
+            return
+        }
         animationToken += 1  // invalidates any in-flight choreography
         finalizeSettledState()
     }
@@ -451,6 +468,8 @@ final class GameTableViewModel {
         revealedCards.removeAll()
         playerCardsAwaitingFlip = false
         pendingFinalBalance = nil
+        currentCeremony = nil
+        ceremonyAdvanceEnabled = false
         displayedBalance = chipBalance
         settledToken = animationToken
     }
@@ -467,6 +486,8 @@ final class GameTableViewModel {
         blindAnimation = .none
         playAnimation = .none
         tripsAnimation = .none
+        currentCeremony = nil
+        ceremonyAdvanceEnabled = false
         if let final = pendingFinalBalance {
             displayedBalance = final
             pendingFinalBalance = nil
@@ -600,16 +621,62 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 
-    /// Wraps the dealer reveal + chip resolution chain. Only runs if the
-    /// engine reached `.handComplete` on the dispatched action — checks +
-    /// pre-flop bets and folds all qualify.
+    /// Wraps the dealer reveal + (optional) ceremony + chip resolution
+    /// chain. Only runs if the engine reached `.handComplete` on the
+    /// dispatched action — checks + pre-flop bets and folds all qualify.
     private func maybeAnimateHandResolution(token: Int) async {
         guard isCurrent(token), phase == .handComplete else { return }
         await animateDealerHoleCards(token: token)
         guard isCurrent(token) else { return }
-        await clock.sleep(milliseconds: 100) // brief beat before chips move
+        await clock.sleep(milliseconds: 100) // brief beat before next phase
         guard isCurrent(token) else { return }
+        if let ceremony = makeCeremonyState() {
+            await animateCeremony(ceremony, token: token)
+            guard isCurrent(token) else { return }
+        }
         await animateChipResolution(token: token)
+    }
+
+    /// Builds the ceremony snapshot from the engine's last hand result, or
+    /// returns nil when neither hand reaches Tier 2+.
+    private func makeCeremonyState() -> CeremonyState? {
+        guard let result = lastHandResult else { return nil }
+        return CeremonyState.from(result: result)
+    }
+
+    /// Plays the ceremony beat for the given state. Tier 2 (.notable) and
+    /// Tier 3 (.big) are timed displays — 1200ms / 1800ms respectively —
+    /// that the universal tap-to-skip can interrupt at any time. Tier 4
+    /// (.jackpot) is gated: the first 2500ms ignore taps (lock-in window),
+    /// then a 1500ms tap-to-advance window runs to a 4000ms total cap.
+    internal func animateCeremony(_ state: CeremonyState, token: Int) async {
+        currentCeremony = state
+        // Pre-stage the post-resolution balance so a tap-to-skip during
+        // the ceremony lands on the engine's final balance — chip
+        // resolution would otherwise have done this for us.
+        pendingFinalBalance = chipBalance
+
+        switch state.effectiveTier {
+        case .standard:
+            return // unreachable — makeCeremonyState filtered it out
+        case .notable:
+            animationStage = .ceremony
+            await clock.sleep(milliseconds: 1200)
+        case .big:
+            animationStage = .ceremony
+            await clock.sleep(milliseconds: 1800)
+        case .jackpot:
+            animationStage = .jackpotCeremony
+            ceremonyAdvanceEnabled = false
+            await clock.sleep(milliseconds: 2500) // locked-in display
+            guard isCurrent(token) else { return }
+            ceremonyAdvanceEnabled = true
+            await clock.sleep(milliseconds: 1500) // tap-to-advance window
+        }
+
+        guard isCurrent(token) else { return }
+        currentCeremony = nil
+        ceremonyAdvanceEnabled = false
     }
 
     private func animateChipResolution(token: Int) async {
@@ -691,6 +758,28 @@ final class GameTableViewModel {
     }
 
     // MARK: - Formatting
+
+    // MARK: - Test hooks
+
+    /// Runs only the ceremony beat for the given synthetic state under a
+    /// fresh animation token — no dealer reveal, no chip resolution. Used
+    /// by tests to drive Tier 4 timing/gating without rolling a real
+    /// jackpot hand from the deck.
+    func _testRunCeremony(_ state: CeremonyState) {
+        if bypassAnimation {
+            currentCeremony = state
+            currentCeremony = nil
+            return
+        }
+        animationToken += 1
+        let token = animationToken
+        Task { @MainActor in
+            await self.animateCeremony(state, token: token)
+            if self.animationToken == token {
+                self.finalizeSettledState()
+            }
+        }
+    }
 
     private static let currencyFormatter: NumberFormatter = {
         let f = NumberFormatter()

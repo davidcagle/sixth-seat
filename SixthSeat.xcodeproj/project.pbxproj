@@ -21,6 +21,8 @@
 		C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000EB1 /* GameTableViewModelTests.swift */; };
 		C00000000000000000000DC1 /* AnimationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000FB1 /* AnimationModel.swift */; };
 		C00000000000000000000EC1 /* AnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000010B1 /* AnimationTests.swift */; };
+		C00000000000000000000FC1 /* CeremonyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000011B1 /* CeremonyView.swift */; };
+		C0000000000000000000010C1 /* CeremonyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000012B1 /* CeremonyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +52,8 @@
 		B00000000000000000000EB1 /* GameTableViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModelTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000FB1 /* AnimationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationModel.swift; sourceTree = "<group>"; };
 		B0000000000000000000010B1 /* AnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000011B1 /* CeremonyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyView.swift; sourceTree = "<group>"; };
+		B0000000000000000000012B1 /* CeremonyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +113,7 @@
 				B000000000000000000005B1 /* SmokeTests.swift */,
 				B00000000000000000000EB1 /* GameTableViewModelTests.swift */,
 				B0000000000000000000010B1 /* AnimationTests.swift */,
+				B0000000000000000000012B1 /* CeremonyTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -120,6 +125,7 @@
 				B00000000000000000000AB1 /* BetZoneView.swift */,
 				B00000000000000000000BB1 /* ChipStackView.swift */,
 				B00000000000000000000CB1 /* GameTableView.swift */,
+				B0000000000000000000011B1 /* CeremonyView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -249,6 +255,7 @@
 				C00000000000000000000AC1 /* GameTableView.swift in Sources */,
 				C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */,
 				C00000000000000000000DC1 /* AnimationModel.swift in Sources */,
+				C00000000000000000000FC1 /* CeremonyView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +266,7 @@
 				C000000000000000000005C1 /* SmokeTests.swift in Sources */,
 				C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */,
 				C00000000000000000000EC1 /* AnimationTests.swift in Sources */,
+				C0000000000000000000010C1 /* CeremonyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

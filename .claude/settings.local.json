@@ -29,7 +29,10 @@
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -configuration Debug build)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeatApp -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)"
     ]
   }
 }
