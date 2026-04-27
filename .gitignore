@@ -4,3 +4,9 @@
 .DS_Store
 .claude/worktrees/
 .build/
+
+# Xcode user state (personal IDE settings, not for version control)
+xcuserdata/
+*.xcuserstate
+project.xcworkspace/xcuserdata/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
