@@ -150,6 +150,7 @@ struct GameTableView: View {
             faceDown: viewModel.isCommunityCardFaceDown(index: index),
             width: 52, height: 72
         )
+        .id("community-card-\(viewModel.currentDealId)-\(index)")
     }
 
     // MARK: - Bet zones

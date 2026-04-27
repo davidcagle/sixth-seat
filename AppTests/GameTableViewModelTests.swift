@@ -6,12 +6,17 @@ import Testing
 @Suite("GameTableViewModel")
 struct GameTableViewModelTests {
 
-    @Test("Fresh view model applies starter bonus to empty store")
-    func freshViewModelGrantsStarterBonus() {
+    @Test("Fresh view model trusts the store balance and does not apply the starter bonus")
+    func freshViewModelDoesNotGrantStarterBonus() {
+        // Starter-bonus responsibility moved to `UserDefaultsChipStore.init`
+        // in Session 14a so the Main Menu reflects the bonus immediately
+        // (and so it can't stack with the second-chance bonus on Play-tap).
+        // The VM now trusts whatever balance the store hands it.
         let store = InMemoryChipStore()
         let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
 
-        #expect(vm.chipBalance == BonusLogic.starterBonusAmount)
+        #expect(vm.chipBalance == 0)
+        #expect(store.hasReceivedStarterBonus == false)
         #expect(vm.phase == .awaitingBets)
         #expect(vm.playerHoleCards.isEmpty)
         #expect(vm.errorMessage == nil)

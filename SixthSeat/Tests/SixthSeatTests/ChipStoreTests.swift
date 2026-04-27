@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import SixthSeat
 
@@ -42,6 +43,59 @@ struct InMemoryChipStoreTests {
         #expect(store.hasReceivedStarterBonus == false)
         #expect(store.hasReceivedSecondChanceBonus == false)
         #expect(store.totalHandsPlayed == 0)
+    }
+}
+
+@Suite("UserDefaultsChipStore")
+struct UserDefaultsChipStoreTests {
+
+    /// Builds a fresh, isolated `UserDefaults` so the test can exercise
+    /// `UserDefaultsChipStore` without leaking into other tests or the
+    /// real user's defaults database. Each test uses a unique suite
+    /// name and removes it before constructing the store.
+    private static func freshDefaults(
+        suite: String = "com.sixthseat.test.\(UUID().uuidString)"
+    ) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
+    @Test("Init applies the starter bonus eagerly so the menu shows 5,000 on fresh install")
+    func initAppliesStarterBonus() {
+        let defaults = Self.freshDefaults()
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.chipBalance == 5_000)
+        #expect(store.hasReceivedStarterBonus == true)
+        #expect(store.hasReceivedSecondChanceBonus == false)
+    }
+
+    @Test("Re-initializing with the same defaults does not stack the starter bonus")
+    func reinitDoesNotStackStarter() {
+        let defaults = Self.freshDefaults()
+        _ = UserDefaultsChipStore(defaults: defaults) // first instance grants the bonus
+        let second = UserDefaultsChipStore(defaults: defaults)
+
+        // The flag from the first instance prevents a second grant.
+        #expect(second.chipBalance == 5_000)
+        #expect(second.hasReceivedStarterBonus == true)
+    }
+
+    @Test("Init does not apply the starter bonus when the flag is already set")
+    func initRespectsPreExistingFlag() {
+        let suite = "com.sixthseat.test.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        // Simulate a returning player: they have a non-default balance
+        // and the flag is already set from a prior session.
+        defaults.set(750, forKey: PersistenceKeys.chipBalance)
+        defaults.set(true, forKey: PersistenceKeys.hasReceivedStarterBonus)
+
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.chipBalance == 750)
+        #expect(store.hasReceivedStarterBonus == true)
     }
 }
 

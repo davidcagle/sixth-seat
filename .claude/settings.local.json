@@ -40,7 +40,9 @@
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -derivedDataPath /tmp/SixthSeatBuild -quiet build)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -derivedDataPath /tmp/SixthSeatBuild -configuration Debug -quiet build)",
       "Read(//private/tmp/**)",
-      "Bash(plutil -p __TRACKED_VAR__/Library/Preferences/com.sixthseat.uth.plist)"
+      "Bash(plutil -p __TRACKED_VAR__/Library/Preferences/com.sixthseat.uth.plist)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -derivedDataPath build/ build)",
+      "Bash(xcodebuild -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/focused-albattani-8f2912/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -derivedDataPath /tmp/sixthseat-build build)"
     ]
   }
 }

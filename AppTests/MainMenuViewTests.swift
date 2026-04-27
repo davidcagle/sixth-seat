@@ -87,6 +87,45 @@ struct MainMenuViewTests {
         #expect(shouldNavigate == true)
     }
 
+    @Test("Play tap on a fresh-install store (starter not yet received) does NOT fire second-chance — prevents the 7,500 stacking bug")
+    func playTapDoesNotStackBeforeStarter() {
+        // The shape that produced the 7,500-chip stacking bug pre-Session 14a:
+        // chip balance is 0 because the starter bonus has not yet fired,
+        // so the old `balance == 0 && !secondChance` gate would happily
+        // grant the second-chance bonus alongside the starter. The fix
+        // requires `hasReceivedStarterBonus == true` before second-chance
+        // can apply.
+        let store = InMemoryChipStore(
+            chipBalance: 0,
+            hasReceivedStarterBonus: false,
+            hasReceivedSecondChanceBonus: false
+        )
+
+        let shouldNavigate = MainMenuLogic.handlePlayTap(store: store)
+
+        #expect(store.chipBalance == 0)
+        #expect(store.hasReceivedSecondChanceBonus == false)
+        // Without starter received and without chips, navigation is
+        // still permitted because `playEnabled(balance: 0, hasUsed: false)`
+        // returns true — but in production this case never reaches
+        // the menu (UserDefaultsChipStore.init applies starter eagerly).
+        #expect(shouldNavigate == true)
+    }
+
+    @Test("Play tap with starter received and balance just hit zero DOES grant second-chance (the post-bust path)")
+    func playTapGrantsSecondChanceAfterBust() {
+        let store = InMemoryChipStore(
+            chipBalance: 0,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: false
+        )
+
+        _ = MainMenuLogic.handlePlayTap(store: store)
+
+        #expect(store.chipBalance == BonusLogic.secondChanceBonusAmount)
+        #expect(store.hasReceivedSecondChanceBonus == true)
+    }
+
     @Test("Play tap on busted-with-rescue-spent store does NOT re-grant and blocks navigation")
     func playTapBustedNoRescueBlocks() {
         let store = InMemoryChipStore(

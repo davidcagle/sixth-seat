@@ -139,6 +139,54 @@ struct AnimationTests {
         #expect(vm.isPlayerCardFaceDown(index: 1))
     }
 
+    @Test("Flop cards are face-down between checkPreFlop dispatch and reveal")
+    func flopCardsFaceDownAtCheckPreFlop() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        // Engine has dealt the flop synchronously inside checkPreFlop,
+        // but the spawned animation Task has not yet run any reveal.
+        // The user-visible frame at this moment must show all three
+        // flop cards face-down — the bug Session 14a fixed flipped them
+        // face-up immediately because positional identity reused the
+        // previous hand's face-up rotation.
+        vm.checkPreFlop()
+        #expect(vm.communityCards.count == 3)
+        #expect(vm.isCommunityCardFaceDown(index: 0))
+        #expect(vm.isCommunityCardFaceDown(index: 1))
+        #expect(vm.isCommunityCardFaceDown(index: 2))
+    }
+
+    @Test("Turn and river cards are face-down between checkPostFlop dispatch and reveal")
+    func turnAndRiverFaceDownAtCheckPostFlop() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        // Flop is already revealed; engine has just dealt turn + river
+        // synchronously inside checkPostFlop. The new cards (indices 3
+        // and 4) must render face-down before their staggered reveal.
+        vm.checkPostFlop()
+        #expect(vm.communityCards.count == 5)
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+    }
+
+    @Test("All five community cards are face-down between betPreFlop dispatch and reveal")
+    func allCommunityFaceDownAtBetPreFlop() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        // Pre-flop bet path: engine deals all 5 community cards in one
+        // synchronous step. Every slot must render face-down before the
+        // animateAllCommunity Task body fires its first reveal.
+        vm.betPreFlop(multiplier: 3)
+        #expect(vm.communityCards.count == 5)
+        for i in 0..<5 {
+            #expect(vm.isCommunityCardFaceDown(index: i))
+        }
+    }
+
     @Test("Dealer cards stay face-down until handComplete reveal")
     func dealerCardsFaceDownThroughDecisions() async {
         let vm = Self.makeVM()

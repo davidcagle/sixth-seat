@@ -37,9 +37,17 @@ enum MainMenuLogic {
     /// menu is the trigger point — `BonusLogic` itself is unchanged.
     /// Returns whether the player should be allowed to navigate to
     /// the game after this call (i.e. `playEnabled` post-mutation).
+    ///
+    /// The starter-received gate is critical: on a fresh install the
+    /// chip balance is already zero, and without this guard the
+    /// second-chance bonus would fire alongside the starter bonus and
+    /// stack to 7,500. Second-chance is reserved for the post-bust
+    /// path — only after the starter has been awarded does it apply.
     @discardableResult
     static func handlePlayTap(store: ChipStoreProtocol) -> Bool {
-        if store.chipBalance == 0 && !store.hasReceivedSecondChanceBonus {
+        if store.chipBalance == 0
+            && store.hasReceivedStarterBonus
+            && !store.hasReceivedSecondChanceBonus {
             BonusLogic.applySecondChanceBonusIfEligible(store: store)
         }
         return playEnabled(

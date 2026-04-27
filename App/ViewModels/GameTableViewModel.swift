@@ -66,12 +66,12 @@ final class GameTableViewModel {
     private(set) var playerCardsAwaitingFlip: Bool = false
 
     /// Monotonic per-hand counter, incremented on each successful `deal()`.
-    /// Drives explicit `.id()` modifiers on the player hole-card views so
-    /// SwiftUI tears down and recreates the CardView on every new hand —
-    /// guarantees the new card starts in its initial face-down render
-    /// state instead of inheriting the previous hand's view (where
-    /// positional identity would otherwise let the old face-up rotation
-    /// leak into the new hand).
+    /// Drives explicit `.id()` modifiers on the player hole-card and
+    /// community-card views so SwiftUI tears down and recreates the
+    /// CardView on every new hand — guarantees the new card starts in
+    /// its initial face-down render state instead of inheriting the
+    /// previous hand's view (where positional identity would otherwise
+    /// let the old face-up rotation leak into the new hand).
     private(set) var currentDealId: Int = 0
 
     /// Balance the view should display *while animating* — distinct from
@@ -134,9 +134,6 @@ final class GameTableViewModel {
         bypassAnimation: Bool = false
     ) {
         let store = chipStore ?? InMemoryChipStore()
-        // Grant starter bonus on first run — matches the production path
-        // once UserDefaults persistence is wired in later.
-        BonusLogic.applyStarterBonusIfEligible(store: store)
         self.chipStore = store
         self.game = GameState(chipStore: store)
         self.clock = clock
@@ -589,6 +586,13 @@ final class GameTableViewModel {
         guard isCurrent(token), communityCards.count >= 3 else { return }
         animationStage = .revealingFlop
 
+        // Yield before the first reveal so SwiftUI flushes the post-
+        // dispatch face-down render even if a future scheduler change
+        // runs this Task body back-to-back with checkPreFlop. Mirrors
+        // the protection in animatePlayerHoleCards.
+        await Task.yield()
+        guard isCurrent(token) else { return }
+
         await clock.sleep(milliseconds: 200) // burn pause
         guard isCurrent(token) else { return }
 
@@ -609,6 +613,11 @@ final class GameTableViewModel {
         guard isCurrent(token), communityCards.count >= 5 else { return }
         animationStage = .revealingTurn
 
+        // See animateFlop — yield to flush the post-dispatch face-down
+        // render before the first reveal lands.
+        await Task.yield()
+        guard isCurrent(token) else { return }
+
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
@@ -626,6 +635,11 @@ final class GameTableViewModel {
     private func animateAllCommunity(token: Int) async {
         guard isCurrent(token), communityCards.count >= 5 else { return }
         animationStage = .revealingFlopTurnRiver
+
+        // See animateFlop — yield to flush the post-dispatch face-down
+        // render before the first reveal lands.
+        await Task.yield()
+        guard isCurrent(token) else { return }
 
         await clock.sleep(milliseconds: 200)
         for i in 0..<5 {

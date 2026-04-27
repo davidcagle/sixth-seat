@@ -22,6 +22,11 @@ public final class UserDefaultsChipStore: ChipStoreProtocol {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        // Apply the starter bonus eagerly so the first thing the player
+        // sees on the Main Menu is their 5,000-chip bankroll, not zero.
+        // Lazy application at game-entry leaks zero through the menu and
+        // collides with the second-chance bonus trigger, stacking both.
+        BonusLogic.applyStarterBonusIfEligible(store: self)
     }
 
     public var chipBalance: Int {
