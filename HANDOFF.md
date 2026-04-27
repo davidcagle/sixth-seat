@@ -2,9 +2,9 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. For locked design decisions, paytables, and architecture, see `SPEC.md`.
 
-**Last updated:** 2026-04-27 (Session 12a)
+**Last updated:** 2026-04-27 (Session 12b)
 
-**Project completion estimate:** ~84% complete (was ~82%)
+**Project completion estimate:** ~86% complete (was ~84%)
 
 ## Project History
 
@@ -15,6 +15,7 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 12 | Deal all 5 community cards face-down up front; flip on phase transitions instead of phase deal | 238 |
 | 14c | Apply view-identity pattern to dealer hole cards (`.id()` + `Task.yield()`) | 242 |
 | 12a | Unify Ante bet zone to tap-to-cycle (parity with Trips); remove +/- stepper | 250 |
+| 12b | In-game bust flow: first-bust gift modal awards 2,500 chips, second-bust modal routes to Chip Shop; Chip Shop stub upgraded with back-to-menu | 267 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
@@ -24,8 +25,9 @@ App/Views additions and annotations:
 
 * `MainMenuView.swift` (encloses `MenuDestination` enum + `MainMenuLogic` helpers)
 * `SettingsView.swift` (stub — Session 15)
-* `ChipShopView.swift` (stub — Session 16)
+* `ChipShopView.swift` (Session 12b stub upgrade — title + "coming soon" line + Back to Menu button; real IAP in Session 16)
 * `HowToPlayView.swift` (stub — Session 15)
+* `BustFlashView.swift` (Session 12b — in-game flash modal; first-bust gift, second-bust Chip Shop routing)
 
 Engine package additions:
 
@@ -34,6 +36,12 @@ Engine package additions:
 App description note:
 
 > `ContentView` is now a `NavigationStack` shell with a `GameDestinationView` wrapper that owns `GameTableViewModel` via `@State`.
+
+## Architectural Decisions
+
+* Bust detection fires in-game at the moment chip resolution lands balance at 0, not at the menu boundary. First bust awards 2,500 second-chance chips with a brand-voiced flash modal. Second bust routes to Chip Shop via flash modal with navigation button. The `hasReceivedSecondChanceBonus` flag is set at moment of award (before modal display) to protect against force-quit replay. The Session 14 menu-boundary check remains as a fallback. (Session 12b)
+
+(Also see `SPEC.md` for the full set of architectural decisions established in earlier sessions.)
 
 ## Workflow Lessons
 
@@ -64,7 +72,8 @@ App description note:
 * **Session 14a — done.**
 * **Session 14c — done.** Dealer hole cards now carry the `.id("dealer-card-\(currentDealId)-N")` modifier and `animateDealerHoleCards` opens with `await Task.yield()`, completing Project Convention #4 across all card slots.
 * **Session 12a — done.** Ante bet zone now uses tap-to-cycle ($5 → $25 → $100 → $500 → $1,000 → $0) mirroring the Trips zone. Removed the +/- stepper UI and the `incrementStagedAnte` / `decrementStagedAnte` / `anteSteps` model surface entirely. Blind continues to mirror Ante automatically (engine invariant in `placeAnte`), and DEAL is now disabled when the cycle lands on $0.
-* **Next firm step: Session 12b — in-game bust flow.** Bust state + bonus flash message + Chip Shop routing placeholder. After 12b: Session 15 (Settings screen with Apple 4.3 disclosures, audio toggle stub, How to Play content; also resolves table-aware bet zone cycle ranges).
+* **Session 12b — done.** Bust detection moved in-game. After chip resolution lands the balance at zero, a brand-voiced flash modal fires: first bust awards 2,500 chips with a `.success` haptic and resets the table to `.awaitingBets` with Ante = $5 behind the modal; second bust uses a `.warning` haptic and routes to the Chip Shop via path replacement (`path = [.chipShop]`). The `hasReceivedSecondChanceBonus` flag is set at the moment of award, *before* the modal is shown, so a force-quit during the modal cannot replay the bonus. Chip Shop stub upgraded with title, "Chip bundles coming soon." line, and a Back to Menu button. The Session 14 menu-boundary check stays in place as a fallback.
+* **Next firm step: Session 15 — Settings + Apple 4.3 disclosures + How to Play content.** Also resolves table-aware bet zone cycle ranges (currently deferred). Real Chip Shop with StoreKit IAP ships in Session 16.
 
 ## Known Gaps and Tooling Needs
 

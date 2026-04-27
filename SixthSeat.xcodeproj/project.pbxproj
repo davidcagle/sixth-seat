@@ -30,6 +30,8 @@
 		C0000000000000000000015C1 /* ChipShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000017B1 /* ChipShopView.swift */; };
 		C0000000000000000000016C1 /* HowToPlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000018B1 /* HowToPlayView.swift */; };
 		C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000019B1 /* MainMenuViewTests.swift */; };
+		C0000000000000000000018C1 /* BustFlashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001AB1 /* BustFlashView.swift */; };
+		C0000000000000000000019C1 /* BustFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001BB1 /* BustFlowTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +70,8 @@
 		B0000000000000000000017B1 /* ChipShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopView.swift; sourceTree = "<group>"; };
 		B0000000000000000000018B1 /* HowToPlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowToPlayView.swift; sourceTree = "<group>"; };
 		B0000000000000000000019B1 /* MainMenuViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewTests.swift; sourceTree = "<group>"; };
+		B000000000000000000001AB1 /* BustFlashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlashView.swift; sourceTree = "<group>"; };
+		B000000000000000000001BB1 /* BustFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlowTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +133,7 @@
 				B0000000000000000000010B1 /* AnimationTests.swift */,
 				B0000000000000000000012B1 /* CeremonyTests.swift */,
 				B0000000000000000000019B1 /* MainMenuViewTests.swift */,
+				B000000000000000000001BB1 /* BustFlowTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -145,6 +150,7 @@
 				B0000000000000000000016B1 /* SettingsView.swift */,
 				B0000000000000000000017B1 /* ChipShopView.swift */,
 				B0000000000000000000018B1 /* HowToPlayView.swift */,
+				B000000000000000000001AB1 /* BustFlashView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -283,6 +289,7 @@
 				C0000000000000000000014C1 /* SettingsView.swift in Sources */,
 				C0000000000000000000015C1 /* ChipShopView.swift in Sources */,
 				C0000000000000000000016C1 /* HowToPlayView.swift in Sources */,
+				C0000000000000000000018C1 /* BustFlashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,6 +302,7 @@
 				C00000000000000000000EC1 /* AnimationTests.swift in Sources */,
 				C0000000000000000000010C1 /* CeremonyTests.swift in Sources */,
 				C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */,
+				C0000000000000000000019C1 /* BustFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

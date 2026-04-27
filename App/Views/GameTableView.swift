@@ -5,6 +5,10 @@ import SixthSeat
 /// graphics — real art drops in later without layout changes.
 struct GameTableView: View {
     @Bindable var viewModel: GameTableViewModel
+    /// Closure invoked when the second-bust modal's "Visit Chip Shop"
+    /// button is tapped. Provided by the host so this view stays free of
+    /// the navigation path. `nil` in previews and unit tests.
+    var onVisitChipShop: (() -> Void)? = nil
 
     private let feltColor = Color(red: 0.1, green: 0.4, blue: 0.2)
 
@@ -27,6 +31,7 @@ struct GameTableView: View {
             .padding(.bottom, 12)
 
             ceremonyOverlay
+            bustOverlay
         }
         // Tap anywhere on the felt while animating to snap to the settled
         // state. The gesture sits behind interactive controls — buttons
@@ -50,6 +55,24 @@ struct GameTableView: View {
         .animation(.easeInOut(duration: 0.40), value: viewModel.displayedBalance)
         .animation(.easeInOut(duration: 0.25), value: viewModel.currentCeremony)
         .animation(.easeInOut(duration: 0.25), value: viewModel.ceremonyAdvanceEnabled)
+        .animation(.easeInOut(duration: 0.20), value: viewModel.bustModal)
+    }
+
+    // MARK: - Bust overlay
+
+    @ViewBuilder
+    private var bustOverlay: some View {
+        if let kind = viewModel.bustModal {
+            BustFlashView(
+                kind: kind,
+                onDismiss: { viewModel.dismissBustModal() },
+                onVisitChipShop: {
+                    viewModel.dismissBustModal()
+                    onVisitChipShop?()
+                }
+            )
+            .transition(.opacity)
+        }
     }
 
     // MARK: - Ceremony overlay

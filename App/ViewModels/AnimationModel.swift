@@ -127,6 +127,14 @@ public enum BetZoneIdentifier: Sendable {
     case ante, blind, play, trips
 }
 
+/// Which in-game bust flash is on screen.
+/// - `.firstBust`: the second-chance gift modal (auto-dismisses).
+/// - `.secondBust`: the routing modal that points to the Chip Shop.
+public enum BustModalKind: Equatable, Sendable {
+    case firstBust
+    case secondBust
+}
+
 /// What happens to a single bet zone at hand resolution. Computed from a
 /// `HandResult` plus the zone's stake.
 public enum BetZoneOutcome: Equatable, Sendable {

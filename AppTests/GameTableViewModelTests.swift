@@ -531,8 +531,17 @@ struct GameTableViewModelTests {
     @Test("rebet with insufficient chips sets an error and does not deal")
     func rebetInsufficientChipsShowsError() {
         // Play a small hand so lastAnteBet is set, then attempt a rebet
-        // from a near-empty balance.
-        let store = InMemoryChipStore(chipBalance: 20, hasReceivedStarterBonus: true)
+        // from a near-empty balance. `hasReceivedSecondChanceBonus: true`
+        // skips the Session 12b first-bust auto-award path so this test
+        // continues to exercise the rebet-with-insufficient-chips flow
+        // — second-bust still fires (the modal appears and the engine is
+        // collected to `.awaitingBets`), and rebet now refuses because
+        // the engine is no longer in `.handComplete`.
+        let store = InMemoryChipStore(
+            chipBalance: 20,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: true
+        )
         let vm = GameTableViewModel(chipStore: store, bypassAnimation: true)
         vm.stagedAnte = 10
         vm.deal()
@@ -540,15 +549,16 @@ struct GameTableViewModelTests {
         vm.checkPostFlop()
         vm.fold()
 
-        // Balance is now 0 (Ante+Blind forfeited, no Trips).
+        // Balance is 0 and the second-bust modal is up; collectAndReset
+        // ran inside the bust handler, so the engine is at `.awaitingBets`.
         #expect(vm.chipBalance == 0)
         #expect(vm.lastAnteBet == 10)
         #expect(vm.canRebet == false)
+        #expect(vm.bustModal == .secondBust)
 
         vm.rebet()
 
         #expect(vm.errorMessage != nil)
-        #expect(vm.phase == .handComplete)
     }
 
     @Test("lastAnteBet and lastTripsBet update after each completed hand")

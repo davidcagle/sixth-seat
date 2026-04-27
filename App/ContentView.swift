@@ -23,7 +23,7 @@ struct ContentView: View {
                 .navigationDestination(for: MenuDestination.self) { destination in
                     switch destination {
                     case .game:
-                        GameDestinationView(chipStore: chipStore)
+                        GameDestinationView(chipStore: chipStore, path: $path)
                     case .chipShop:
                         ChipShopView()
                     case .settings:
@@ -57,16 +57,26 @@ struct ContentView: View {
 /// `navigationDestination` re-evaluation doesn't recreate engine
 /// state mid-hand. The view model is constructed once when this
 /// destination is pushed and torn down with the view on pop.
+///
+/// Holds a binding into the menu's navigation path so the second-bust
+/// flash can replace the game route with the Chip Shop route
+/// (`path = [.chipShop]` — Back from chip shop returns to the menu
+/// root, not to the busted game state).
 private struct GameDestinationView: View {
 
     @State private var viewModel: GameTableViewModel
+    @Binding var path: [MenuDestination]
 
-    init(chipStore: ChipStoreProtocol) {
+    init(chipStore: ChipStoreProtocol, path: Binding<[MenuDestination]>) {
         _viewModel = State(initialValue: GameTableViewModel(chipStore: chipStore))
+        self._path = path
     }
 
     var body: some View {
-        GameTableView(viewModel: viewModel)
+        GameTableView(
+            viewModel: viewModel,
+            onVisitChipShop: { path = [.chipShop] }
+        )
     }
 }
 

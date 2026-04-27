@@ -84,6 +84,12 @@ final class GameTableViewModel {
     /// Drives the Tier 2-4 overlay views.
     private(set) var currentCeremony: CeremonyState?
 
+    /// In-game bust flash, or `nil` when no flash is on screen. Drives the
+    /// `BustFlashView` overlay shown after a hand resolves to a balance of
+    /// zero. `.firstBust` carries the second-chance gift; `.secondBust`
+    /// routes to the Chip Shop.
+    private(set) var bustModal: BustModalKind?
+
     /// Tier 4 only. False during the 3500ms locked-in display window —
     /// taps are ignored. Flips true once the lock-in expires; from there
     /// either a tap or the 1500ms auto-advance timeout proceeds to chip
@@ -474,6 +480,7 @@ final class GameTableViewModel {
         }
         animationToken += 1  // invalidates any in-flight choreography
         finalizeSettledState()
+        maybeShowBustFlash()
     }
 
     private func resetAnimationState() {
@@ -536,6 +543,7 @@ final class GameTableViewModel {
     private func runAnimation(_ body: @MainActor @escaping (_ token: Int) async -> Void) {
         if bypassAnimation {
             finalizeSettledState()
+            maybeShowBustFlash()
             return
         }
         animationToken += 1
@@ -545,6 +553,7 @@ final class GameTableViewModel {
             // If we still own this run (no skip happened), settle cleanly.
             if self.animationToken == token {
                 self.finalizeSettledState()
+                self.maybeShowBustFlash()
             }
         }
     }
@@ -844,6 +853,77 @@ final class GameTableViewModel {
         case .play:  playAnimation  = value
         case .trips: tripsAnimation = value
         }
+    }
+
+    // MARK: - Bust flash
+
+    /// Detects an in-game bust at the moment chip resolution lands the
+    /// balance at exactly 0, and presents the appropriate flash modal:
+    /// first-bust awards the second-chance bonus and resets the table to
+    /// `.awaitingBets`; second-bust offers a route to the Chip Shop. The
+    /// `hasReceivedSecondChanceBonus` flag is set at the moment the bonus
+    /// is awarded — *before* the modal is shown — so a force-quit during
+    /// the modal cannot replay the bonus on relaunch.
+    private func maybeShowBustFlash() {
+        guard phase == .handComplete else { return }
+        guard chipStore.chipBalance == 0 else { return }
+        guard bustModal == nil else { return }
+
+        if chipStore.hasReceivedSecondChanceBonus {
+            presentSecondBust()
+        } else {
+            presentFirstBust()
+        }
+    }
+
+    private func presentFirstBust() {
+        // Award + flag set *before* presentation. BonusLogic enforces the
+        // same guards (balance == 0 && !hasReceived) but at this point we
+        // already know they hold, so this is effectively unconditional.
+        BonusLogic.applySecondChanceBonusIfEligible(store: chipStore)
+
+        // Sync the post-award balance into VM-visible state, then clear
+        // the table so the player lands on the betting screen behind the
+        // modal: collectAndReset drops `.handComplete` to `.awaitingBets`.
+        haptics.notification(.success)
+        bustModal = .firstBust
+        dispatch(.collectAndReset)
+        resetAnimationState()
+        stagedAnte = anteCycle.first ?? 5
+        stagedTrips = 0
+        displayedBalance = chipBalance
+
+        // Schedule the 5-second auto-dismiss through the animation clock so
+        // tests can drive the timing deterministically. Skipped under
+        // `bypassAnimation` so synchronous unit tests don't leak Tasks.
+        guard !bypassAnimation else { return }
+        Task { @MainActor [weak self] in
+            await self?.clock.sleep(milliseconds: 5_000)
+            guard let self else { return }
+            // Only auto-dismiss if the first-bust modal is still on screen
+            // (player may have tapped to dismiss in the meantime, or the
+            // modal may have been replaced by a second-bust on a follow-up
+            // hand — the auto-dismiss must not interfere with that).
+            if self.bustModal == .firstBust {
+                self.bustModal = nil
+            }
+        }
+    }
+
+    private func presentSecondBust() {
+        haptics.notification(.warning)
+        bustModal = .secondBust
+        dispatch(.collectAndReset)
+        resetAnimationState()
+        stagedAnte = 0
+        stagedTrips = 0
+    }
+
+    /// Hides the bust flash modal. Called by the modal's tap-to-dismiss
+    /// gesture and by the "Visit Chip Shop" button right before the
+    /// view layer pushes the chip-shop route onto the navigation stack.
+    func dismissBustModal() {
+        bustModal = nil
     }
 
     // MARK: - Outcome inspection (for tests + view)
