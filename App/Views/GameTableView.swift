@@ -117,10 +117,12 @@ struct GameTableView: View {
                     card: viewModel.dealerHoleCards.indices.contains(0) ? viewModel.dealerHoleCards[0] : nil,
                     faceDown: viewModel.isDealerCardFaceDown(index: 0)
                 )
+                .id("dealer-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.dealerHoleCards.indices.contains(1) ? viewModel.dealerHoleCards[1] : nil,
                     faceDown: viewModel.isDealerCardFaceDown(index: 1)
                 )
+                .id("dealer-card-\(viewModel.currentDealId)-1")
             }
 
             if let result = viewModel.lastHandResult, viewModel.phase == .handComplete, !viewModel.isAnimating {

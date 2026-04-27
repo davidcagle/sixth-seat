@@ -669,6 +669,15 @@ final class GameTableViewModel {
         guard isCurrent(token), dealerHoleCards.count >= 2 else { return }
         animationStage = .revealingDealer
 
+        // See animateFlop — yield to flush the post-dispatch face-down
+        // render before the first reveal lands. Pairs with the
+        // .id("dealer-card-\(currentDealId)-N") modifier in GameTableView
+        // (Project Convention #4): without the yield, SwiftUI's positional
+        // identity reuse can carry the prior hand's face-up dealer view
+        // into the new hand and skip the face-down→face-up flip.
+        await Task.yield()
+        guard isCurrent(token) else { return }
+
         revealWithHaptic(dealerHoleCards[0])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }

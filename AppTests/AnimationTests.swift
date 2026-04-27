@@ -479,6 +479,144 @@ struct AnimationTests {
         #expect(vm.playerFolded)
     }
 
+    // MARK: - Session 14c: dealer view identity (Project Convention #4)
+
+    @Test("Session 14c: dealer reveal flips card 0 then card 1 from face-down under manual clock")
+    func session14c_dealerRevealStepwise() async {
+        // animateDealerHoleCards now starts with `await Task.yield()` so
+        // SwiftUI flushes the post-dispatch face-down render before the
+        // first reveal. Under ManualAnimationClock the yield re-resumes
+        // synchronously, then revealWithHaptic[0] fires and the Task
+        // suspends on the 200ms sleep. The 250ms sleep gates reveal[1].
+        let clock = ManualAnimationClock()
+        let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        vm.stagedAnte = 10
+
+        let drainAndResume: () async -> Void = {
+            await Self.yieldMany()
+            while clock.pendingSleeps > 0 || vm.isAnimating {
+                if clock.pendingSleeps > 0 { clock.resumeNext() }
+                await Self.yieldMany()
+            }
+        }
+        vm.deal();          await drainAndResume()
+        vm.checkPreFlop();  await drainAndResume()
+        vm.checkPostFlop(); await drainAndResume()
+
+        // At .postRiverDecision: all 5 community face-up, both dealer face-down.
+        #expect(vm.phase == .postRiverDecision)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+
+        // betPostRiver → handComplete → animateDealerHoleCards.
+        // After yieldMany the Task has cleared the yield + synchronous
+        // reveal[0] and is parked on sleep(200): card 0 face-up, card 1
+        // still face-down.
+        vm.betPostRiver()
+        await Self.yieldMany()
+        #expect(vm.isDealerCardFaceDown(index: 0) == false)
+        #expect(vm.isDealerCardFaceDown(index: 1))
+
+        // Resume the 200ms sleep → reveal[1] fires.
+        clock.resumeNext(); await Self.yieldMany()
+        #expect(vm.isDealerCardFaceDown(index: 1) == false)
+    }
+
+    @Test("Session 14c: a second hand starts with both dealer cards face-down again")
+    func session14c_secondHandStartsDealerFaceDown() async {
+        // Mirrors the community-card session 12 second-hand test for the
+        // dealer slots. The .id("dealer-card-\(currentDealId)-N") modifier
+        // forces SwiftUI to recreate the dealer CardViews on REBET so the
+        // prior hand's face-up rotation cannot leak into this hand.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+        // First-hand state: dealer cards face-up.
+        #expect(vm.isDealerCardFaceDown(index: 0) == false)
+        #expect(vm.isDealerCardFaceDown(index: 1) == false)
+        let firstHandDealId = vm.currentDealId
+
+        vm.rebet()
+        await drainAnimations()
+
+        // Second hand: dealer cards present and face-down again, with a
+        // bumped currentDealId so the .id() formula yields a fresh key.
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.dealerHoleCards.count == 2)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+        #expect(vm.currentDealId == firstHandDealId + 1)
+    }
+
+    @Test("Session 14c: fold then non-fold reveals dealer under a fresh view identity")
+    func session14c_foldThenNonFoldRevealsDealerWithNewIdentity() async {
+        // Hand 1 folds — Session 11's no-reveal rule keeps dealer
+        // face-down. Hand 2 plays through to dealer reveal. The view
+        // identity must change between hands so SwiftUI rebuilds the
+        // dealer CardViews and runs the face-down→face-up flip cleanly.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.fold();          await drainAnimations()
+        let firstHandDealId = vm.currentDealId
+        #expect(vm.playerFolded)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+
+        vm.rebet()
+        await drainAnimations()
+        #expect(vm.currentDealId == firstHandDealId + 1)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+        #expect(vm.playerFolded == false)
+
+        // Walk hand 2 through to dealer reveal.
+        vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+        #expect(vm.phase == .handComplete)
+        #expect(vm.isDealerCardFaceDown(index: 0) == false)
+        #expect(vm.isDealerCardFaceDown(index: 1) == false)
+    }
+
+    @Test("Session 14c: consecutive folds leave dealer face-down on both hands with distinct view identities")
+    func session14c_consecutiveFoldsPreserveNoReveal() async {
+        // Two folds in a row with a REBET between them. Each hand bumps
+        // currentDealId — proving the view identity changes — but the
+        // Session 11 no-reveal-on-fold rule still holds: dealer cards
+        // remain face-down on both hands.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.fold();          await drainAnimations()
+        let dealId1 = vm.currentDealId
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+
+        vm.rebet();         await drainAnimations()
+        #expect(vm.currentDealId == dealId1 + 1)
+        vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.fold();          await drainAnimations()
+        #expect(vm.playerFolded)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+        #expect(vm.currentDealId != dealId1)
+    }
+
     // MARK: - Bet zone outcome inspection
 
     @Test("zoneOutcome returns .noBet when no hand has resolved")

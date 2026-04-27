@@ -43,7 +43,17 @@
       "Bash(plutil -p __TRACKED_VAR__/Library/Preferences/com.sixthseat.uth.plist)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -derivedDataPath build/ build)",
       "Bash(xcodebuild -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/focused-albattani-8f2912/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -derivedDataPath /tmp/sixthseat-build build)",
-      "Bash(defaults read *)"
+      "Bash(defaults read *)",
+      "Bash(mdfind -name \"Xcode.app\")",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -version)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project SixthSeat.xcodeproj -list)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcrun simctl list devices available)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/simctl list devices available)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project SixthSeat.xcodeproj -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17\" -quiet)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project SixthSeat.xcodeproj -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17\")",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcrun --sdk macosx swift test)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project SixthSeat.xcodeproj -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17\")"
     ]
   }
 }

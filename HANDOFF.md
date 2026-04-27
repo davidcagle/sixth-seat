@@ -2,9 +2,9 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. For locked design decisions, paytables, and architecture, see `SPEC.md`.
 
-**Last updated:** 2026-04-27 (Session 12)
+**Last updated:** 2026-04-27 (Session 14c)
 
-**Project completion estimate:** ~80% complete (was ~78%)
+**Project completion estimate:** ~82% complete (was ~80%)
 
 ## Project History
 
@@ -13,6 +13,7 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 14 | Main Menu screen + NavigationStack routing + persistent ChipStore | 224 |
 | 14a | Bug fixes: bonus stacking on first launch, community cards face-down regression | 232 |
 | 12 | Deal all 5 community cards face-down up front; flip on phase transitions instead of phase deal | 238 |
+| 14c | Apply view-identity pattern to dealer hole cards (`.id()` + `Task.yield()`) | 242 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
@@ -50,16 +51,17 @@ App description note:
 7. Verify community-card face-down deal works correctly across multiple consecutive hands (the Session 14a regression repro path)
 8. **(Session 12) Casino-feel of the new deal sequence**: do all 5 community cards visibly arrive face-down at DEAL? Does the burn pause feel like stillness rather than waiting? Do the flip stutters / view-identity edge cases the auto tests can't catch read clean?
 
-**Other tracked items:**
+**Deferred (asset-blocked or later session):**
 
-* Dealer-card view identity pattern missing — **Session 14c is the next firm session** (was deferred from 14b). The dealer `CardView`s in `GameTableView.swift` have no `.id("dealer-card-...")`, and `animateDealerHoleCards` in `GameTableViewModel.swift` lacks the `await Task.yield()` prefix that the player and community paths use. Session 12 deliberately did not fix this — dealer face-down state interacts with the fold path and Session 11's no-reveal rule, so it deserves regression tests, not a drive-by.
+* Chip balance updates immediately on bet placement, before card reveal. Surfaced in post-Session 12 phone test. Current behavior is functionally correct (chips committed to the wager) but visually thin because there is no chip-stack visual on the bet zone — chips appear to vanish from the balance with nothing on the felt to show where they went. Fix is to add chip-stack visuals on bet zones during Session 18 (Fiverr asset integration), at which point the balance number dropping becomes visually consistent with chips having physically moved onto the table. Do not stopgap before real assets land — placeholder chip visuals will feel worse than the current state.
 
 ## What's Next
 
 * **Session 12 — done.** Reversed from "struck" after 2026-04-27 phone test surfaced casino-realism gap (community cards animating in face-down at phase, instead of being pitched out at hand start).
 * **Session 14 — done.**
 * **Session 14a — done.**
-* **Next firm step: Session 14c — dealer-card view identity fix.** Then Session 15 (Settings screen with Apple 4.3 disclosures, audio toggle stub, How to Play content).
+* **Session 14c — done.** Dealer hole cards now carry the `.id("dealer-card-\(currentDealId)-N")` modifier and `animateDealerHoleCards` opens with `await Task.yield()`, completing Project Convention #4 across all card slots.
+* **Next firm step: Session 12a — bet UI consistency.** Tap-to-cycle on Ante to mirror the Trips zone behavior. Then Session 12b (in-game bust flow), then Session 15 (Settings screen with Apple 4.3 disclosures, audio toggle stub, How to Play content).
 
 ## Known Gaps and Tooling Needs
 
