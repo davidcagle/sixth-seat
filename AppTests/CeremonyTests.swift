@@ -212,15 +212,17 @@ struct CeremonyTests {
         #expect(vm.isAnimating == false)
     }
 
-    @Test("Tier 4 lock-in: tap is ignored during the first 2500ms")
+    @Test("Tier 4 lock-in: tap is ignored during the first 3500ms")
     func tier4TapIgnoredDuringLockIn() async {
         let clock = ManualAnimationClock()
         let vm = makeVM(clock: clock)
-        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+        // Dealer-driven Tier 4 — no player-win haptic spacers, so the
+        // lock-in sleep is the first thing we suspend on.
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .jackpot)
 
         vm._testRunCeremony(synthetic)
         await drainAnimations()
-        // Suspended at the 2500ms lock-in sleep.
+        // Suspended at the 3500ms lock-in sleep.
         #expect(vm.animationStage == .jackpotCeremony)
         #expect(vm.ceremonyAdvanceEnabled == false)
         #expect(vm.currentCeremony != nil)
@@ -236,11 +238,11 @@ struct CeremonyTests {
     func tier4TapRespectedAfterLockIn() async {
         let clock = ManualAnimationClock()
         let vm = makeVM(clock: clock)
-        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .jackpot)
 
         vm._testRunCeremony(synthetic)
         await drainAnimations()
-        // Suspended at the 2500ms lock-in sleep.
+        // Suspended at the 3500ms lock-in sleep.
 
         // Resume the lock-in sleep.
         clock.resumeNext()
@@ -259,7 +261,7 @@ struct CeremonyTests {
     func tier4AutoAdvancesIfNoTap() async {
         let clock = ManualAnimationClock()
         let vm = makeVM(clock: clock)
-        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .jackpot)
 
         vm._testRunCeremony(synthetic)
         await drainAnimations()
@@ -275,11 +277,13 @@ struct CeremonyTests {
         #expect(vm.isAnimating == false)
     }
 
-    @Test("Tier 4 sleep durations are 2500ms and 1500ms in that order")
-    func tier4SleepDurations() async {
+    @Test("Tier 4 dealer-driven sleep durations are 3500ms and 1500ms in that order")
+    func tier4DealerWinSleepDurations() async {
         let clock = ManualAnimationClock()
         let vm = makeVM(clock: clock)
-        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+        // Dealer-driven Tier 4 fires no success haptic, so the bare
+        // ceremony timing is what shows up in the sleep log.
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .jackpot)
 
         vm._testRunCeremony(synthetic)
         await drainAnimations()
@@ -288,7 +292,53 @@ struct CeremonyTests {
         clock.resumeNext()
         await drainAnimations()
 
-        #expect(clock.sleepLog == [2500, 1500])
+        #expect(clock.sleepLog == [3500, 1500])
+    }
+
+    @Test("Tier 4 player-win non-royal sleep durations are [90, 3500, 1500]")
+    func tier4PlayerWinNonRoyalSleepDurations() async {
+        let clock = ManualAnimationClock()
+        let vm = makeVM(clock: clock)
+        // Player-win jackpot with a non-royal hand fires .success + 90ms
+        // spacer + .heavy impact, then the 3500ms lock-in and 1500ms window.
+        let synthetic = makeCeremonyState(
+            playerTier: .jackpot,
+            dealerTier: .standard,
+            playerHand: .straightFlush
+        )
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+        clock.resumeNext()  // 90ms spacer
+        await drainAnimations()
+        clock.resumeNext()  // 3500ms lock-in
+        await drainAnimations()
+        clock.resumeNext()  // 1500ms advance window
+        await drainAnimations()
+
+        #expect(clock.sleepLog == [90, 3500, 1500])
+    }
+
+    @Test("Tier 4 player-win Royal Flush sleep durations are [90, 90, 3500, 1500]")
+    func tier4PlayerWinRoyalFlushSleepDurations() async {
+        let clock = ManualAnimationClock()
+        let vm = makeVM(clock: clock)
+        // Royal flush triggers a triple-tap: .success + 90 + .heavy + 90 +
+        // .heavy, then the lock-in / advance windows.
+        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+        clock.resumeNext()  // first 90ms spacer
+        await drainAnimations()
+        clock.resumeNext()  // second 90ms spacer (royal-only)
+        await drainAnimations()
+        clock.resumeNext()  // 3500ms lock-in
+        await drainAnimations()
+        clock.resumeNext()  // 1500ms advance window
+        await drainAnimations()
+
+        #expect(clock.sleepLog == [90, 90, 3500, 1500])
     }
 
     @Test("Tier 2 ceremony sleep duration is 1200ms")
@@ -305,18 +355,36 @@ struct CeremonyTests {
         #expect(clock.sleepLog == [1200])
     }
 
-    @Test("Tier 3 ceremony sleep duration is 1800ms")
-    func tier3SleepDuration() async {
+    @Test("Tier 3 player-win sleep durations are [90, 2400]")
+    func tier3PlayerWinSleepDurations() async {
+        // Player-win Tier 3 fires .success + 90ms spacer + .medium impact
+        // before the 2400ms display window.
         let clock = ManualAnimationClock()
         let vm = makeVM(clock: clock)
         let synthetic = makeCeremonyState(playerTier: .big, dealerTier: .standard)
 
         vm._testRunCeremony(synthetic)
         await drainAnimations()
+        clock.resumeNext()  // 90ms spacer
+        await drainAnimations()
+        clock.resumeNext()  // 2400ms display
+        await drainAnimations()
+
+        #expect(clock.sleepLog == [90, 2400])
+    }
+
+    @Test("Tier 3 dealer-win sleep duration is 2400ms")
+    func tier3DealerWinSleepDuration() async {
+        let clock = ManualAnimationClock()
+        let vm = makeVM(clock: clock)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .big)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
         clock.resumeNext()
         await drainAnimations()
 
-        #expect(clock.sleepLog == [1800])
+        #expect(clock.sleepLog == [2400])
     }
 
     @Test("Ceremony state is cleared when a new hand begins")
@@ -359,14 +427,109 @@ struct CeremonyTests {
         #expect(vm.currentCeremony == nil)
     }
 
+    // MARK: - Haptic trigger map
+
+    @Test("Tier 2 player win fires a single .success notification")
+    func tier2PlayerWinHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .notable, dealerTier: .standard)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events == [.notification(.success)])
+    }
+
+    @Test("Tier 2 dealer win fires no success haptic")
+    func tier2DealerWinNoHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .notable)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events.isEmpty)
+    }
+
+    @Test("Tier 3 player win fires .success + .medium")
+    func tier3PlayerWinHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .big, dealerTier: .standard)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events == [.notification(.success), .impact(.medium)])
+    }
+
+    @Test("Tier 3 dealer win fires no success haptic")
+    func tier3DealerWinNoHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .big)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events.isEmpty)
+    }
+
+    @Test("Tier 4 player win non-royal fires .success + .heavy")
+    func tier4PlayerWinNonRoyalHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(
+            playerTier: .jackpot,
+            dealerTier: .standard,
+            playerHand: .straightFlush
+        )
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events == [.notification(.success), .impact(.heavy)])
+    }
+
+    @Test("Tier 4 player Royal Flush fires .success + .heavy + .heavy")
+    func tier4RoyalFlushTripleTap() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .jackpot, dealerTier: .standard)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events == [
+            .notification(.success),
+            .impact(.heavy),
+            .impact(.heavy),
+        ])
+    }
+
+    @Test("Tier 4 dealer win fires no success haptic")
+    func tier4DealerWinNoHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = makeVM(clock: ImmediateAnimationClock(), haptics: recording)
+        let synthetic = makeCeremonyState(playerTier: .standard, dealerTier: .jackpot)
+
+        vm._testRunCeremony(synthetic)
+        await drainAnimations()
+
+        #expect(recording.events.isEmpty)
+    }
+
     // MARK: - Helpers
 
     private func makeVM(
         balance: Int = 5_000,
-        clock: AnimationClock = ImmediateAnimationClock()
+        clock: AnimationClock = ImmediateAnimationClock(),
+        haptics: HapticsService = NoopHapticsService()
     ) -> GameTableViewModel {
         let store = InMemoryChipStore(chipBalance: balance, hasReceivedStarterBonus: true)
-        return GameTableViewModel(chipStore: store, clock: clock)
+        return GameTableViewModel(chipStore: store, clock: clock, haptics: haptics)
     }
 
     private func drainAnimations() async {
@@ -419,11 +582,14 @@ struct CeremonyTests {
 
     /// Builds a synthetic `CeremonyState` directly. Used for the timing /
     /// gating tests that drive the ceremony task without a real deal.
+    /// `playerHand` defaults to `rankForTier(playerTier)` — pass a specific
+    /// rank to test the royal-flush triple-tap path independently.
     private func makeCeremonyState(
         playerTier: CeremonyTier,
-        dealerTier: CeremonyTier
+        dealerTier: CeremonyTier,
+        playerHand: HandRank? = nil
     ) -> CeremonyState {
-        let player = rankForTier(playerTier)
+        let player = playerHand ?? rankForTier(playerTier)
         let dealer = rankForTier(dealerTier)
         return CeremonyState(
             playerHand: player,

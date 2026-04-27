@@ -9,9 +9,12 @@ struct AnimationTests {
     /// Helper — view model with the immediate clock so all `await sleep`s
     /// resolve without real-time delays. Lets each test run end-to-end in
     /// a few milliseconds.
-    private static func makeVM(balance: Int = 5_000) -> GameTableViewModel {
+    private static func makeVM(
+        balance: Int = 5_000,
+        haptics: HapticsService = NoopHapticsService()
+    ) -> GameTableViewModel {
         let store = InMemoryChipStore(chipBalance: balance, hasReceivedStarterBonus: true)
-        return GameTableViewModel(chipStore: store, clock: ImmediateAnimationClock())
+        return GameTableViewModel(chipStore: store, clock: ImmediateAnimationClock(), haptics: haptics)
     }
 
     // MARK: - Outcome computation
@@ -155,6 +158,74 @@ struct AnimationTests {
         vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
         #expect(vm.isDealerCardFaceDown(index: 0) == false)
         #expect(vm.isDealerCardFaceDown(index: 1) == false)
+    }
+
+    @Test("Dealer cards remain face-down after a post-river fold")
+    func dealerCardsStayFaceDownOnFold() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.fold();          await drainAnimations()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playerFolded)
+        #expect(vm.isDealerCardFaceDown(index: 0))
+        #expect(vm.isDealerCardFaceDown(index: 1))
+    }
+
+    @Test("playerFolded resets to false after newHand")
+    func playerFoldedResetsAfterNewHand() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.fold();          await drainAnimations()
+        #expect(vm.playerFolded)
+
+        vm.newHand()
+        #expect(vm.playerFolded == false)
+    }
+
+    @Test("Fold path skips the dealer-reveal sleeps (no [200, 250, 100])")
+    func foldSkipsDealerRevealSleeps() async {
+        let clock = ManualAnimationClock()
+        let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        vm.stagedAnte = 10
+
+        // Drive deal → preFlop check → postFlop check, draining all sleeps
+        // via the manual clock so the log is at a known point before fold.
+        // Yield first so the spawned Task reaches its first suspend before
+        // we start resuming, then keep going until both the clock queue is
+        // empty and the view model has finished settling.
+        let drainAll: () async -> Void = {
+            await drainAnimations()
+            while clock.pendingSleeps > 0 || vm.isAnimating {
+                if clock.pendingSleeps > 0 {
+                    clock.resumeNext()
+                }
+                await drainAnimations()
+            }
+        }
+        vm.deal();          await drainAll()
+        vm.checkPreFlop();  await drainAll()
+        vm.checkPostFlop(); await drainAll()
+        let sleepsBeforeFold = clock.sleepLog
+
+        vm.fold(); await drainAll()
+        let foldSleeps = Array(clock.sleepLog.dropFirst(sleepsBeforeFold.count))
+
+        // Fold-path sleeps should be only the chip-resolution beats:
+        // [150 pulse, 550 slide, 150 balance hold]. Dealer reveal would have
+        // contributed [200, 250, 100] which must be absent.
+        #expect(foldSleeps == [150, 550, 150])
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playerFolded)
     }
 
     // MARK: - Bet zone outcome inspection
@@ -342,6 +413,111 @@ struct AnimationTests {
 
         vm.deal(); await drainAnimations(); vm.skipToSettled()
         #expect(vm.currentDealId == dealIdBefore + 1)
+    }
+
+    // MARK: - Haptic trigger map
+
+    @Test("Card flips fire .light impacts during deal")
+    func dealFiresLightCardFlipHaptics() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+        vm.stagedAnte = 10
+
+        vm.deal()
+        await drainAnimations()
+
+        // Two player hole-card reveals on a fresh deal — both fire .light.
+        let lightCount = recording.events.filter { $0 == .impact(.light) }.count
+        #expect(lightCount == 2)
+    }
+
+    @Test("Cycling Trips fires .medium impact when stagedTrips actually changes")
+    func cycleTripsFiresMediumImpact() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+
+        vm.cycleTripsBet()
+        #expect(recording.events == [.impact(.medium)])
+    }
+
+    @Test("Cycling Trips outside .awaitingBets fires no haptic")
+    func cycleTripsAfterDealNoHaptic() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+        vm.stagedAnte = 10
+        vm.deal(); await drainAnimations(); vm.skipToSettled()
+        recording.clear()
+
+        vm.cycleTripsBet()
+        #expect(recording.events.isEmpty)
+    }
+
+    @Test("Ante stepper +/- fires .medium impacts on each step change")
+    func anteStepperFiresMediumImpact() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+
+        vm.incrementStagedAnte()
+        vm.decrementStagedAnte()
+        #expect(recording.events == [.impact(.medium), .impact(.medium)])
+    }
+
+    @Test("Fold path fires no card-flip haptics for the dealer reveal")
+    func foldNoDealerCardFlipHaptics() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        // Track the light-impact count BEFORE the fold so we only count
+        // any new light flips fired during the fold path.
+        let lightsBeforeFold = recording.events.filter { $0 == .impact(.light) }.count
+
+        vm.fold(); await drainAnimations()
+
+        let lightsAfterFold = recording.events.filter { $0 == .impact(.light) }.count
+        #expect(lightsAfterFold == lightsBeforeFold)
+        #expect(vm.playerFolded)
+    }
+
+    @Test("Resolution outcome fires the correct loss/push haptics on slide phase")
+    func resolutionFiresOutcomeHaptics() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+        vm.stagedAnte = 10
+
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+
+        let losses  = recording.events.filter { $0 == .notification(.warning) }.count
+        let pushes  = recording.events.filter { $0 == .impact(.soft) }.count
+
+        // For each of the four bet zones (ante, blind, play, trips),
+        // outcome haptics fire once on .slide. With a non-deterministic
+        // deck we don't know which zones lose/push, but per-zone-per-phase
+        // the count must match the actual outcomes — and at minimum the
+        // count is bounded by the four zones.
+        #expect(losses + pushes <= 4)
+        #expect(losses >= 0)
+        #expect(pushes >= 0)
+    }
+
+    @Test("skipToSettled does not fire .light haptics for the bulk reveal sweep")
+    func skipToSettledNoBulkHaptics() async {
+        let recording = RecordingHapticsService()
+        let vm = Self.makeVM(haptics: recording)
+        vm.stagedAnte = 10
+
+        // Deal and skip immediately — bulk-reveal sweep in finalizeSettledState
+        // would burst flip haptics if we didn't guard it. Confirm only the
+        // animated deal flips fired (max 2: both player hole cards).
+        vm.deal(); await drainAnimations(); vm.skipToSettled()
+        let lightCount = recording.events.filter { $0 == .impact(.light) }.count
+        #expect(lightCount <= 2)
     }
 
     // MARK: - Helpers

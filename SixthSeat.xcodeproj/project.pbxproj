@@ -23,6 +23,8 @@
 		C00000000000000000000EC1 /* AnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000010B1 /* AnimationTests.swift */; };
 		C00000000000000000000FC1 /* CeremonyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000011B1 /* CeremonyView.swift */; };
 		C0000000000000000000010C1 /* CeremonyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000012B1 /* CeremonyTests.swift */; };
+		C0000000000000000000011C1 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000013B1 /* HapticsService.swift */; };
+		C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000014B1 /* SystemHapticsService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +56,8 @@
 		B0000000000000000000010B1 /* AnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000011B1 /* CeremonyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyView.swift; sourceTree = "<group>"; };
 		B0000000000000000000012B1 /* CeremonyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000013B1 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
+		B0000000000000000000014B1 /* SystemHapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemHapticsService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +139,8 @@
 			children = (
 				B00000000000000000000DB1 /* GameTableViewModel.swift */,
 				B00000000000000000000FB1 /* AnimationModel.swift */,
+				B0000000000000000000013B1 /* HapticsService.swift */,
+				B0000000000000000000014B1 /* SystemHapticsService.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -256,6 +262,8 @@
 				C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */,
 				C00000000000000000000DC1 /* AnimationModel.swift in Sources */,
 				C00000000000000000000FC1 /* CeremonyView.swift in Sources */,
+				C0000000000000000000011C1 /* HapticsService.swift in Sources */,
+				C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

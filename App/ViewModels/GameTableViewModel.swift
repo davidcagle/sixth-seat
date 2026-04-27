@@ -22,6 +22,7 @@ final class GameTableViewModel {
     private(set) var dealerHoleCards: [Card]
     private(set) var communityCards: [Card]
     private(set) var lastHandResult: HandResult?
+    private(set) var playerFolded: Bool
     private(set) var errorMessage: String?
 
     /// Current ante wager selected in the pre-deal stake picker.
@@ -83,7 +84,7 @@ final class GameTableViewModel {
     /// Drives the Tier 2-4 overlay views.
     private(set) var currentCeremony: CeremonyState?
 
-    /// Tier 4 only. False during the 2500ms locked-in display window —
+    /// Tier 4 only. False during the 3500ms locked-in display window —
     /// taps are ignored. Flips true once the lock-in expires; from there
     /// either a tap or the 1500ms auto-advance timeout proceeds to chip
     /// resolution.
@@ -102,6 +103,7 @@ final class GameTableViewModel {
     private let game: GameState
     private let chipStore: ChipStoreProtocol
     private let clock: AnimationClock
+    private let haptics: HapticsService
     /// When true, every choreography call settles synchronously on the
     /// dispatching frame — used by engine-only unit tests that don't
     /// want to drive the animation Task.
@@ -128,6 +130,7 @@ final class GameTableViewModel {
     init(
         chipStore: ChipStoreProtocol? = nil,
         clock: AnimationClock = RealAnimationClock(),
+        haptics: HapticsService = SystemHapticsService(),
         bypassAnimation: Bool = false
     ) {
         let store = chipStore ?? InMemoryChipStore()
@@ -137,6 +140,7 @@ final class GameTableViewModel {
         self.chipStore = store
         self.game = GameState(chipStore: store)
         self.clock = clock
+        self.haptics = haptics
         self.bypassAnimation = bypassAnimation
 
         self.phase = .awaitingBets
@@ -150,6 +154,7 @@ final class GameTableViewModel {
         self.dealerHoleCards = []
         self.communityCards = []
         self.lastHandResult = nil
+        self.playerFolded = false
         self.errorMessage = nil
         self.stagedAnte = 10
         self.stagedTrips = 0
@@ -229,18 +234,26 @@ final class GameTableViewModel {
     // MARK: - Intent handlers
 
     func incrementStagedAnte() {
+        let before = stagedAnte
         if let idx = anteSteps.firstIndex(of: stagedAnte), idx + 1 < anteSteps.count {
             stagedAnte = anteSteps[idx + 1]
         } else if !anteSteps.contains(stagedAnte) {
             stagedAnte = anteSteps.first(where: { $0 > stagedAnte }) ?? stagedAnte
         }
+        if stagedAnte != before {
+            haptics.impact(.medium)
+        }
     }
 
     func decrementStagedAnte() {
+        let before = stagedAnte
         if let idx = anteSteps.firstIndex(of: stagedAnte), idx > 0 {
             stagedAnte = anteSteps[idx - 1]
         } else if !anteSteps.contains(stagedAnte) {
             stagedAnte = anteSteps.last(where: { $0 < stagedAnte }) ?? stagedAnte
+        }
+        if stagedAnte != before {
+            haptics.impact(.medium)
         }
     }
 
@@ -253,10 +266,14 @@ final class GameTableViewModel {
     /// error mid-cycle. No-op outside `.awaitingBets`.
     func cycleTripsBet() {
         guard phase == .awaitingBets else { return }
+        let before = stagedTrips
         let currentIndex = tripsCycle.firstIndex(of: stagedTrips) ?? 0
         let nextIndex = (currentIndex + 1) % tripsCycle.count
         let next = tripsCycle[nextIndex]
         stagedTrips = (next == 0 || chipBalance >= next) ? next : 0
+        if stagedTrips != before {
+            haptics.impact(.medium)
+        }
     }
 
     /// Commits the staged ante (and Trips, if any) and immediately deals.
@@ -411,6 +428,7 @@ final class GameTableViewModel {
         dealerHoleCards = game.dealerHoleCards
         communityCards = game.communityCards
         lastHandResult = game.lastHandResult
+        playerFolded = game.playerFolded
 
         // Snapshot the just-resolved wagers on the transition into
         // `.handComplete`. The engine still holds `anteBet`/`tripsBet`
@@ -478,7 +496,9 @@ final class GameTableViewModel {
         // Mark every dealt card as revealed so face-up renders win out.
         for card in playerHoleCards { revealedCards.insert(card) }
         for card in communityCards  { revealedCards.insert(card) }
-        if phase == .handComplete {
+        // On a fold, dealer cards stay face-down — Vegas tables don't expose
+        // them and the player has surrendered the hand.
+        if phase == .handComplete && !playerFolded {
             for card in dealerHoleCards { revealedCards.insert(card) }
         }
         playerCardsAwaitingFlip = false
@@ -527,6 +547,16 @@ final class GameTableViewModel {
         revealedCards.insert(card)
     }
 
+    /// Reveals a card and fires the per-flip light haptic. Used by the
+    /// staggered choreography paths (deal, flop, turn/river, dealer reveal).
+    /// The bare `reveal(_:)` is kept for the bulk-reveal sweep in
+    /// `finalizeSettledState`, which would otherwise burst 5-7 taps in
+    /// ~16ms — unpleasant and not what the trigger map intends.
+    private func revealWithHaptic(_ card: Card) {
+        revealedCards.insert(card)
+        haptics.impact(.light)
+    }
+
     /// Player-deal flip: card 1 starts at 0ms (300ms), card 2 at 150ms (300ms).
     /// Total ~450ms.
     private func animatePlayerHoleCards(token: Int) async {
@@ -547,10 +577,10 @@ final class GameTableViewModel {
         await Task.yield()
         guard isCurrent(token) else { return }
 
-        reveal(playerHoleCards[0])
+        revealWithHaptic(playerHoleCards[0])
         await clock.sleep(milliseconds: 150)
         guard isCurrent(token) else { return }
-        reveal(playerHoleCards[1])
+        revealWithHaptic(playerHoleCards[1])
         await clock.sleep(milliseconds: 300) // card 2's flip window
     }
 
@@ -562,15 +592,15 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200) // burn pause
         guard isCurrent(token) else { return }
 
-        reveal(communityCards[0])
+        revealWithHaptic(communityCards[0])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        reveal(communityCards[1])
+        revealWithHaptic(communityCards[1])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        reveal(communityCards[2])
+        revealWithHaptic(communityCards[2])
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 
@@ -582,12 +612,12 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        reveal(communityCards[3])
+        revealWithHaptic(communityCards[3])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
         animationStage = .revealingRiver
-        reveal(communityCards[4])
+        revealWithHaptic(communityCards[4])
         await clock.sleep(milliseconds: 250)
     }
 
@@ -600,7 +630,7 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200)
         for i in 0..<5 {
             guard isCurrent(token) else { return }
-            reveal(communityCards[i])
+            revealWithHaptic(communityCards[i])
             if i < 4 {
                 await clock.sleep(milliseconds: 150)
             } else {
@@ -614,25 +644,32 @@ final class GameTableViewModel {
         guard isCurrent(token), dealerHoleCards.count >= 2 else { return }
         animationStage = .revealingDealer
 
-        reveal(dealerHoleCards[0])
+        revealWithHaptic(dealerHoleCards[0])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
-        reveal(dealerHoleCards[1])
+        revealWithHaptic(dealerHoleCards[1])
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 
     /// Wraps the dealer reveal + (optional) ceremony + chip resolution
     /// chain. Only runs if the engine reached `.handComplete` on the
     /// dispatched action — checks + pre-flop bets and folds all qualify.
+    /// On fold, both the dealer reveal and the ceremony are skipped:
+    /// Vegas tables don't expose dealer cards on a fold, and a celebration
+    /// of a hand the player surrendered would be wrong product-wise.
+    /// Trips still resolves via `animateChipResolution` — `tripsOutcome`
+    /// is computed independent of the dealer's cards.
     private func maybeAnimateHandResolution(token: Int) async {
         guard isCurrent(token), phase == .handComplete else { return }
-        await animateDealerHoleCards(token: token)
-        guard isCurrent(token) else { return }
-        await clock.sleep(milliseconds: 100) // brief beat before next phase
-        guard isCurrent(token) else { return }
-        if let ceremony = makeCeremonyState() {
-            await animateCeremony(ceremony, token: token)
+        if !playerFolded {
+            await animateDealerHoleCards(token: token)
             guard isCurrent(token) else { return }
+            await clock.sleep(milliseconds: 100) // brief beat before next phase
+            guard isCurrent(token) else { return }
+            if let ceremony = makeCeremonyState() {
+                await animateCeremony(ceremony, token: token)
+                guard isCurrent(token) else { return }
+            }
         }
         await animateChipResolution(token: token)
     }
@@ -645,10 +682,10 @@ final class GameTableViewModel {
     }
 
     /// Plays the ceremony beat for the given state. Tier 2 (.notable) and
-    /// Tier 3 (.big) are timed displays — 1200ms / 1800ms respectively —
+    /// Tier 3 (.big) are timed displays — 1200ms / 2400ms respectively —
     /// that the universal tap-to-skip can interrupt at any time. Tier 4
-    /// (.jackpot) is gated: the first 2500ms ignore taps (lock-in window),
-    /// then a 1500ms tap-to-advance window runs to a 4000ms total cap.
+    /// (.jackpot) is gated: the first 3500ms ignore taps (lock-in window),
+    /// then a 1500ms tap-to-advance window runs to a 5000ms total cap.
     internal func animateCeremony(_ state: CeremonyState, token: Int) async {
         currentCeremony = state
         // Pre-stage the post-resolution balance so a tap-to-skip during
@@ -661,14 +698,34 @@ final class GameTableViewModel {
             return // unreachable — makeCeremonyState filtered it out
         case .notable:
             animationStage = .ceremony
+            if state.isPlayerWin {
+                haptics.notification(.success)
+            }
             await clock.sleep(milliseconds: 1200)
         case .big:
             animationStage = .ceremony
-            await clock.sleep(milliseconds: 1800)
+            if state.isPlayerWin {
+                haptics.notification(.success)
+                await clock.sleep(milliseconds: 90)
+                guard isCurrent(token) else { return }
+                haptics.impact(.medium)
+            }
+            await clock.sleep(milliseconds: 2400)
         case .jackpot:
             animationStage = .jackpotCeremony
             ceremonyAdvanceEnabled = false
-            await clock.sleep(milliseconds: 2500) // locked-in display
+            if state.isPlayerWin {
+                haptics.notification(.success)
+                await clock.sleep(milliseconds: 90)
+                guard isCurrent(token) else { return }
+                haptics.impact(.heavy)
+                if state.playerHand == .royalFlush {
+                    await clock.sleep(milliseconds: 90)
+                    guard isCurrent(token) else { return }
+                    haptics.impact(.heavy)
+                }
+            }
+            await clock.sleep(milliseconds: 3500) // locked-in display
             guard isCurrent(token) else { return }
             ceremonyAdvanceEnabled = true
             await clock.sleep(milliseconds: 1500) // tap-to-advance window
@@ -725,6 +782,16 @@ final class GameTableViewModel {
     private enum AnimPhase { case pulsing, slide }
 
     private func applyZoneAnimation(zone: Zone, outcome: BetZoneOutcome, phase: AnimPhase) {
+        // Fire the per-zone outcome haptic on the slide phase — that's the
+        // moment chips visibly move, so it stays in sync with motion (and
+        // losses, which skip the pulse, get the haptic at the right beat).
+        if phase == .slide {
+            switch outcome {
+            case .loss: haptics.notification(.warning)
+            case .push: haptics.impact(.soft)
+            case .win, .noBet: break
+            }
+        }
         let value: BetZoneAnimation
         switch (outcome, phase) {
         case (.noBet, _):           value = .none
