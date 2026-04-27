@@ -248,3 +248,15 @@ OUT (V2):
 * `hasReceivedStarterBonus` is a persisted flag in `PersistenceKeys`. (Session 14a)
 * Production `ChipStore` = `UserDefaultsChipStore` (self-applies starter bonus). Test `ChipStore` = `InMemoryChipStore` (does not, by design). The invariant "balance is non-zero on first menu render" depends on `UserDefaultsChipStore` being the production path.
 * Bust detection fires in-game at the moment chip resolution lands balance at 0, not at the menu boundary. First bust awards 2,500 second-chance chips with a brand-voiced flash modal. Second bust routes to Chip Shop via flash modal with navigation button. The `hasReceivedSecondChanceBonus` flag is set at moment of award (before modal display) to protect against force-quit replay. The Session 14 menu-boundary check remains as a fallback. (Session 12b)
+
+## Workflow Lessons
+
+**Latent-invariant audits during refactors.** When changing what data exists at what time, or what state transitions can occur in what order, the change can surface bugs that were structurally invisible before. Two failure modes:
+
+(a) Production code paths quietly assumed the old shape. A code path that was a no-op under old conditions becomes active under new conditions and produces wrong behavior. Example: Session 12's `finalizeSettledState` bulk-flipped community cards face-up — harmless when `communityCards` was empty pre-refactor, broken once all 5 cards existed from deal time.
+
+(b) Existing tests' setup conditions inadvertently establish the new behavior's preconditions, producing false failures or false passes. Example: Session 12b's `rebetInsufficientChipsShowsError` set `hasReceivedSecondChanceBonus: false` and `balance: 0`, which under the new in-game bust detection auto-fires the first-bust modal and contaminates the rebet assertion.
+
+Mitigation: when a refactor changes data shape, state machine, or trigger ordering, explicitly audit (1) every site that iterates over affected collections, (2) every test whose setup conditions touch the changed state. Tests catch (a) when they fail visibly. Catching (b) requires reading test setups, not just running them.
+
+Pattern observed in Sessions 12, 12a, and 12b. Expected to recur in Sessions 16 (StoreKit async chip fetching) and 18 (real asset integration changing render timing).

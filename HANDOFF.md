@@ -1,8 +1,8 @@
 # 6th Seat Hold'em — Session Handoff
 
-Running session log: what shipped, what's next, open items. Updated every session. For locked design decisions, paytables, and architecture, see `SPEC.md`.
+Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-04-27 (Session 12b)
+**Last updated:** 2026-04-27 (Session 12c)
 
 **Project completion estimate:** ~86% complete (was ~84%)
 
@@ -16,6 +16,7 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 14c | Apply view-identity pattern to dealer hole cards (`.id()` + `Task.yield()`) | 242 |
 | 12a | Unify Ante bet zone to tap-to-cycle (parity with Trips); remove +/- stepper | 250 |
 | 12b | In-game bust flow: first-bust gift modal awards 2,500 chips, second-bust modal routes to Chip Shop; Chip Shop stub upgraded with back-to-menu | 267 |
+| 12c | Doc cleanup: consolidate architectural decisions to `SPEC.md`, record latent-invariant audit pattern as a Workflow Lesson | 267 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
@@ -36,12 +37,6 @@ Engine package additions:
 App description note:
 
 > `ContentView` is now a `NavigationStack` shell with a `GameDestinationView` wrapper that owns `GameTableViewModel` via `@State`.
-
-## Architectural Decisions
-
-* Bust detection fires in-game at the moment chip resolution lands balance at 0, not at the menu boundary. First bust awards 2,500 second-chance chips with a brand-voiced flash modal. Second bust routes to Chip Shop via flash modal with navigation button. The `hasReceivedSecondChanceBonus` flag is set at moment of award (before modal display) to protect against force-quit replay. The Session 14 menu-boundary check remains as a fallback. (Session 12b)
-
-(Also see `SPEC.md` for the full set of architectural decisions established in earlier sessions.)
 
 ## Workflow Lessons
 
@@ -73,6 +68,7 @@ App description note:
 * **Session 14c — done.** Dealer hole cards now carry the `.id("dealer-card-\(currentDealId)-N")` modifier and `animateDealerHoleCards` opens with `await Task.yield()`, completing Project Convention #4 across all card slots.
 * **Session 12a — done.** Ante bet zone now uses tap-to-cycle ($5 → $25 → $100 → $500 → $1,000 → $0) mirroring the Trips zone. Removed the +/- stepper UI and the `incrementStagedAnte` / `decrementStagedAnte` / `anteSteps` model surface entirely. Blind continues to mirror Ante automatically (engine invariant in `placeAnte`), and DEAL is now disabled when the cycle lands on $0.
 * **Session 12b — done.** Bust detection moved in-game. After chip resolution lands the balance at zero, a brand-voiced flash modal fires: first bust awards 2,500 chips with a `.success` haptic and resets the table to `.awaitingBets` with Ante = $5 behind the modal; second bust uses a `.warning` haptic and routes to the Chip Shop via path replacement (`path = [.chipShop]`). The `hasReceivedSecondChanceBonus` flag is set at the moment of award, *before* the modal is shown, so a force-quit during the modal cannot replay the bonus. Chip Shop stub upgraded with title, "Chip bundles coming soon." line, and a Back to Menu button. The Session 14 menu-boundary check stays in place as a fallback.
+* **Session 12c — done.** Doc cleanup. The Architectural Decisions section was removed from `HANDOFF.md` (the prior 12b entry already lives in `SPEC.md`); per project convention, durable decisions live in `SPEC.md` and `HANDOFF.md` is operational state only. The latent-invariant audit pattern (recurring across Sessions 12, 12a, 12b) was promoted to a formal Workflow Lesson in `SPEC.md`. No code or test changes; test count remains 267.
 * **Next firm step: Session 15 — Settings + Apple 4.3 disclosures + How to Play content.** Also resolves table-aware bet zone cycle ranges (currently deferred). Real Chip Shop with StoreKit IAP ships in Session 16.
 
 ## Known Gaps and Tooling Needs
