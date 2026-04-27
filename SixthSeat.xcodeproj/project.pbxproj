@@ -25,6 +25,11 @@
 		C0000000000000000000010C1 /* CeremonyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000012B1 /* CeremonyTests.swift */; };
 		C0000000000000000000011C1 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000013B1 /* HapticsService.swift */; };
 		C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000014B1 /* SystemHapticsService.swift */; };
+		C0000000000000000000013C1 /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000015B1 /* MainMenuView.swift */; };
+		C0000000000000000000014C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000016B1 /* SettingsView.swift */; };
+		C0000000000000000000015C1 /* ChipShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000017B1 /* ChipShopView.swift */; };
+		C0000000000000000000016C1 /* HowToPlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000018B1 /* HowToPlayView.swift */; };
+		C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000019B1 /* MainMenuViewTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +63,11 @@
 		B0000000000000000000012B1 /* CeremonyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000013B1 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
 		B0000000000000000000014B1 /* SystemHapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemHapticsService.swift; sourceTree = "<group>"; };
+		B0000000000000000000015B1 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
+		B0000000000000000000016B1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B0000000000000000000017B1 /* ChipShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopView.swift; sourceTree = "<group>"; };
+		B0000000000000000000018B1 /* HowToPlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowToPlayView.swift; sourceTree = "<group>"; };
+		B0000000000000000000019B1 /* MainMenuViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +128,7 @@
 				B00000000000000000000EB1 /* GameTableViewModelTests.swift */,
 				B0000000000000000000010B1 /* AnimationTests.swift */,
 				B0000000000000000000012B1 /* CeremonyTests.swift */,
+				B0000000000000000000019B1 /* MainMenuViewTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -130,6 +141,10 @@
 				B00000000000000000000BB1 /* ChipStackView.swift */,
 				B00000000000000000000CB1 /* GameTableView.swift */,
 				B0000000000000000000011B1 /* CeremonyView.swift */,
+				B0000000000000000000015B1 /* MainMenuView.swift */,
+				B0000000000000000000016B1 /* SettingsView.swift */,
+				B0000000000000000000017B1 /* ChipShopView.swift */,
+				B0000000000000000000018B1 /* HowToPlayView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -264,6 +279,10 @@
 				C00000000000000000000FC1 /* CeremonyView.swift in Sources */,
 				C0000000000000000000011C1 /* HapticsService.swift in Sources */,
 				C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */,
+				C0000000000000000000013C1 /* MainMenuView.swift in Sources */,
+				C0000000000000000000014C1 /* SettingsView.swift in Sources */,
+				C0000000000000000000015C1 /* ChipShopView.swift in Sources */,
+				C0000000000000000000016C1 /* HowToPlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,6 +294,7 @@
 				C00000000000000000000CC1 /* GameTableViewModelTests.swift in Sources */,
 				C00000000000000000000EC1 /* AnimationTests.swift in Sources */,
 				C0000000000000000000010C1 /* CeremonyTests.swift in Sources */,
+				C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -32,7 +32,15 @@
       "Bash(git commit -m ' *)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeatApp -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test)",
       "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test)",
-      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)"
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeatApp -destination 'platform=iOS Simulator,name=iPhone 15' -quiet build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 15' -quiet build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17' test)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -derivedDataPath /tmp/SixthSeatBuild -quiet build)",
+      "Bash(xcodebuild -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'id=78D5B4DD-EE59-4825-BA79-DF8E8CA8A522' -derivedDataPath /tmp/SixthSeatBuild -configuration Debug -quiet build)",
+      "Read(//private/tmp/**)",
+      "Bash(plutil -p __TRACKED_VAR__/Library/Preferences/com.sixthseat.uth.plist)"
     ]
   }
 }
