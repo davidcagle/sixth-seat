@@ -2,9 +2,9 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. For locked design decisions, paytables, and architecture, see `SPEC.md`.
 
-**Last updated:** 2026-04-27 (Session 14c)
+**Last updated:** 2026-04-27 (Session 12a)
 
-**Project completion estimate:** ~82% complete (was ~80%)
+**Project completion estimate:** ~84% complete (was ~82%)
 
 ## Project History
 
@@ -14,6 +14,7 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 14a | Bug fixes: bonus stacking on first launch, community cards face-down regression | 232 |
 | 12 | Deal all 5 community cards face-down up front; flip on phase transitions instead of phase deal | 238 |
 | 14c | Apply view-identity pattern to dealer hole cards (`.id()` + `Task.yield()`) | 242 |
+| 12a | Unify Ante bet zone to tap-to-cycle (parity with Trips); remove +/- stepper | 250 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
@@ -54,6 +55,7 @@ App description note:
 **Deferred (asset-blocked or later session):**
 
 * Chip balance updates immediately on bet placement, before card reveal. Surfaced in post-Session 12 phone test. Current behavior is functionally correct (chips committed to the wager) but visually thin because there is no chip-stack visual on the bet zone — chips appear to vanish from the balance with nothing on the felt to show where they went. Fix is to add chip-stack visuals on bet zones during Session 18 (Fiverr asset integration), at which point the balance number dropping becomes visually consistent with chips having physically moved onto the table. Do not stopgap before real assets land — placeholder chip visuals will feel worse than the current state.
+* **Bet zone cycle ranges deferred to Session 15.** Current Ante cycle is $5 → $25 → $100 → $500 → $1,000 → $0 with no $10 option. Real Vegas tables expose different cycle ranges based on table minimums ($10 tables include $10/$15 bets, $25 tables minimum at $25, etc.). When Session 15 ships table selection UI, both the Ante and Trips cycles should become table-aware. The chip-set authenticity question ($10 as a real chip vs. as a stack of two $5s) also resolves in Session 15's context.
 
 ## What's Next
 
@@ -61,7 +63,8 @@ App description note:
 * **Session 14 — done.**
 * **Session 14a — done.**
 * **Session 14c — done.** Dealer hole cards now carry the `.id("dealer-card-\(currentDealId)-N")` modifier and `animateDealerHoleCards` opens with `await Task.yield()`, completing Project Convention #4 across all card slots.
-* **Next firm step: Session 12a — bet UI consistency.** Tap-to-cycle on Ante to mirror the Trips zone behavior. Then Session 12b (in-game bust flow), then Session 15 (Settings screen with Apple 4.3 disclosures, audio toggle stub, How to Play content).
+* **Session 12a — done.** Ante bet zone now uses tap-to-cycle ($5 → $25 → $100 → $500 → $1,000 → $0) mirroring the Trips zone. Removed the +/- stepper UI and the `incrementStagedAnte` / `decrementStagedAnte` / `anteSteps` model surface entirely. Blind continues to mirror Ante automatically (engine invariant in `placeAnte`), and DEAL is now disabled when the cycle lands on $0.
+* **Next firm step: Session 12b — in-game bust flow.** Bust state + bonus flash message + Chip Shop routing placeholder. After 12b: Session 15 (Settings screen with Apple 4.3 disclosures, audio toggle stub, How to Play content; also resolves table-aware bet zone cycle ranges).
 
 ## Known Gaps and Tooling Needs
 

@@ -119,8 +119,10 @@ final class GameTableViewModel {
     private var settledToken: Int = 0
     private var pendingFinalBalance: Int?
 
-    /// Default ante increments the player can cycle through with +/-.
-    let anteSteps: [Int] = [5, 10, 25, 50, 100, 250, 500, 1000]
+    /// Amounts the Ante zone cycles through on tap. Zero is the cleared
+    /// state (cycle wraps back to the first step). Blind auto-matches Ante,
+    /// so each step actually requires 2× the listed amount in chips.
+    let anteCycle: [Int] = [5, 25, 100, 500, 1000, 0]
 
     /// Amounts the Trips zone cycles through on tap. Zero represents "off".
     let tripsCycle: [Int] = [0, 5, 10, 25]
@@ -153,7 +155,7 @@ final class GameTableViewModel {
         self.lastHandResult = nil
         self.playerFolded = false
         self.errorMessage = nil
-        self.stagedAnte = 10
+        self.stagedAnte = 5
         self.stagedTrips = 0
     }
 
@@ -228,34 +230,34 @@ final class GameTableViewModel {
         phase == .awaitingBets
     }
 
+    /// Whether the Ante zone should be interactive. Only true while the
+    /// player is placing bets — once DEAL fires, the zone locks.
+    var isAnteZoneInteractive: Bool {
+        phase == .awaitingBets
+    }
+
     // MARK: - Intent handlers
-
-    func incrementStagedAnte() {
-        let before = stagedAnte
-        if let idx = anteSteps.firstIndex(of: stagedAnte), idx + 1 < anteSteps.count {
-            stagedAnte = anteSteps[idx + 1]
-        } else if !anteSteps.contains(stagedAnte) {
-            stagedAnte = anteSteps.first(where: { $0 > stagedAnte }) ?? stagedAnte
-        }
-        if stagedAnte != before {
-            haptics.impact(.medium)
-        }
-    }
-
-    func decrementStagedAnte() {
-        let before = stagedAnte
-        if let idx = anteSteps.firstIndex(of: stagedAnte), idx > 0 {
-            stagedAnte = anteSteps[idx - 1]
-        } else if !anteSteps.contains(stagedAnte) {
-            stagedAnte = anteSteps.last(where: { $0 < stagedAnte }) ?? stagedAnte
-        }
-        if stagedAnte != before {
-            haptics.impact(.medium)
-        }
-    }
 
     func placeAnte(amount: Int) {
         dispatch(.placeAnte(amount: amount))
+    }
+
+    /// Advances the Ante through $5 → $25 → $100 → $500 → $1,000 → $0
+    /// → wrap. Unaffordable non-zero steps fall back to $0 (the cleared
+    /// state) so we never stage a bet the player can't cover. Blind
+    /// auto-matches Ante, so affordability is checked at 2× the step.
+    /// No-op outside `.awaitingBets`. The view layer additionally gates
+    /// onTap by `!isAnimating`, mirroring the Trips zone.
+    func cycleAnteBet() {
+        guard phase == .awaitingBets else { return }
+        let before = stagedAnte
+        let currentIndex = anteCycle.firstIndex(of: stagedAnte) ?? -1
+        let nextIndex = (currentIndex + 1) % anteCycle.count
+        let next = anteCycle[nextIndex]
+        stagedAnte = (next == 0 || chipBalance >= next * 2) ? next : 0
+        if stagedAnte != before {
+            haptics.impact(.medium)
+        }
     }
 
     /// Advances the Trips side bet through off → $5 → $10 → $25 → off.

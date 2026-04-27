@@ -104,25 +104,148 @@ struct GameTableViewModelTests {
         #expect(vm.lastHandResult == nil)
     }
 
-    @Test("Staged ante cycles through steps via increment/decrement")
-    func stagedAnteIncrementDecrement() {
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
-        vm.stagedAnte = 10
-
-        vm.incrementStagedAnte()
-        #expect(vm.stagedAnte == 25)
-        vm.incrementStagedAnte()
-        #expect(vm.stagedAnte == 50)
-        vm.decrementStagedAnte()
-        #expect(vm.stagedAnte == 25)
-    }
-
     @Test("formattedBalance uses currency formatting")
     func formattedBalanceUsesCommas() {
         let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 5_000), bypassAnimation: true)
 
         let formatted = vm.formattedBalance
         #expect(formatted.contains("5,000"))
+    }
+
+    // MARK: - Ante bet cycling
+
+    @Test("Cycling Ante from initial $5 advances to $25")
+    func cycleAnteFromFivePlacesTwentyFive() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        // Fresh init starts stagedAnte at $5 (first cycle step).
+        #expect(vm.stagedAnte == 5)
+
+        vm.cycleAnteBet()
+
+        #expect(vm.stagedAnte == 25)
+    }
+
+    @Test("Cycling Ante advances through every step in order")
+    func cycleAnteAdvancesThroughEachStep() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        let expected = [25, 100, 500, 1000, 0, 5, 25]
+
+        for step in expected {
+            vm.cycleAnteBet()
+            #expect(vm.stagedAnte == step)
+        }
+    }
+
+    @Test("Cycling Ante from $0 wraps back to $5")
+    func cycleAnteWrapsFromZeroToFive() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        // Walk to $0 (5 → 25 → 100 → 500 → 1000 → 0).
+        for _ in 0..<5 { vm.cycleAnteBet() }
+        #expect(vm.stagedAnte == 0)
+
+        vm.cycleAnteBet()
+        #expect(vm.stagedAnte == 5)
+    }
+
+    @Test("Blind value mirrors Ante after each cycle tap")
+    func cycleAnteBlindMirrorsAnte() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        // The Blind bet zone displays `stagedAnte` while in `.awaitingBets`,
+        // matching the engine invariant Blind == Ante that placeAnte enforces
+        // on deal. Verify the cycle drives both the Ante value the deal will
+        // commit and the Blind value the player sees.
+        let cycle = [25, 100, 500, 1000, 0, 5]
+
+        for step in cycle {
+            vm.cycleAnteBet()
+            #expect(vm.stagedAnte == step)
+        }
+
+        // Walk through a deal to confirm the engine still enforces Blind = Ante
+        // at the value we landed on in the cycle.
+        vm.cycleAnteBet() // → 25
+        vm.deal()
+        #expect(vm.anteBet == 25)
+        #expect(vm.blindBet == 25)
+    }
+
+    @Test("Cycling Ante skips an unaffordable step to $0")
+    func cycleAnteSkipsUnaffordableToZero() {
+        // 60 chips: $5 ($10 needed) OK, $25 ($50) OK, $100 ($200) unaffordable
+        // → falls back to $0 (cleared state).
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 60), bypassAnimation: true)
+        #expect(vm.stagedAnte == 5)
+
+        vm.cycleAnteBet()
+        #expect(vm.stagedAnte == 25)
+
+        vm.cycleAnteBet()
+        #expect(vm.stagedAnte == 0)
+        #expect(vm.errorMessage == nil)
+    }
+
+    @Test("Cycling Ante does not affect Trips")
+    func cycleAnteIndependentOfTrips() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        vm.cycleTripsBet() // stagedTrips = 5
+
+        vm.cycleAnteBet() // stagedAnte 5 → 25
+
+        #expect(vm.stagedAnte == 25)
+        #expect(vm.stagedTrips == 5)
+    }
+
+    @Test("Cycling Ante after the deal has no effect")
+    func cycleAnteAfterDealIsNoOp() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        // Ante starts at 5; deal commits it.
+        vm.deal()
+        #expect(vm.phase == .preFlopDecision)
+        let stagedBefore = vm.stagedAnte
+
+        vm.cycleAnteBet()
+
+        #expect(vm.stagedAnte == stagedBefore)
+        #expect(vm.anteBet == 5)
+        #expect(vm.phase == .preFlopDecision)
+    }
+
+    @Test("REBET preserves the prior Ante value across hands")
+    func rebetPreservesAnteAcrossHands() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        vm.stagedAnte = 100
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+        #expect(vm.phase == .handComplete)
+        #expect(vm.lastAnteBet == 100)
+
+        vm.rebet()
+
+        // After REBET the new hand is in flight with the prior $100 Ante still
+        // staged — not reset to $0 and not reset to the $5 cycle floor.
+        #expect(vm.stagedAnte == 100)
+        #expect(vm.anteBet == 100)
+        #expect(vm.blindBet == 100)
+        #expect(vm.phase == .preFlopDecision)
+    }
+
+    @Test("DEAL is rejected when Ante is at the $0 cycle position")
+    func dealRefusesWhenAnteIsZero() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        // Walk to $0 in the cycle.
+        for _ in 0..<5 { vm.cycleAnteBet() }
+        #expect(vm.stagedAnte == 0)
+
+        // canDeal must be false at $0; the engine itself also refuses
+        // placeAnte(0), so a direct deal() leaves the phase untouched.
+        #expect(vm.canDeal == false)
+
+        vm.deal()
+        #expect(vm.phase == .awaitingBets)
+        #expect(vm.playerHoleCards.isEmpty)
     }
 
     // MARK: - Trips side bet cycling

@@ -169,8 +169,9 @@ struct GameTableView: View {
             BetZoneView(
                 label: "ANTE",
                 amount: viewModel.anteBet > 0 ? viewModel.anteBet : viewModel.stagedAnte,
-                isActive: viewModel.phase == .awaitingBets && !viewModel.isAnimating,
-                animation: viewModel.anteAnimation
+                isActive: viewModel.isAnteZoneInteractive && !viewModel.isAnimating,
+                animation: viewModel.anteAnimation,
+                onTap: (viewModel.isAnteZoneInteractive && !viewModel.isAnimating) ? { viewModel.cycleAnteBet() } : nil
             )
             BetZoneView(
                 label: "BLIND",
@@ -244,28 +245,11 @@ struct GameTableView: View {
 
     private var stakeSelectorBar: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                tapButton(symbol: "minus.circle.fill", enabled: !viewModel.isAnimating && viewModel.stagedAnte > (viewModel.anteSteps.first ?? 5)) {
-                    viewModel.decrementStagedAnte()
-                }
-                VStack(spacing: 2) {
-                    Text("ANTE")
-                        .font(.system(size: 10, weight: .bold))
-                        .tracking(1)
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text("$\(viewModel.stagedAnte)")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.yellow)
-                }
-                .frame(minWidth: 90)
-                tapButton(symbol: "plus.circle.fill", enabled: !viewModel.isAnimating && viewModel.stagedAnte < (viewModel.anteSteps.last ?? 1000)) {
-                    viewModel.incrementStagedAnte()
-                }
-            }
-
             primaryButton(
                 "DEAL",
-                enabled: !viewModel.isAnimating && viewModel.chipBalance >= viewModel.stagedAnte * 2
+                enabled: !viewModel.isAnimating
+                      && viewModel.stagedAnte > 0
+                      && viewModel.chipBalance >= viewModel.stagedAnte * 2
             ) {
                 viewModel.deal()
             }
@@ -358,16 +342,6 @@ struct GameTableView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(Color.white.opacity(enabled ? 0.4 : 0.2), lineWidth: 1)
                 )
-        }
-        .disabled(!enabled)
-    }
-
-    private func tapButton(symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 30))
-                .foregroundStyle(enabled ? .white : .white.opacity(0.3))
-                .frame(width: 44, height: 44)
         }
         .disabled(!enabled)
     }

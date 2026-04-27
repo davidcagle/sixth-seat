@@ -841,13 +841,13 @@ struct AnimationTests {
         #expect(recording.events.isEmpty)
     }
 
-    @Test("Ante stepper +/- fires .medium impacts on each step change")
-    func anteStepperFiresMediumImpact() async {
+    @Test("Cycling Ante fires .medium impact on each step change")
+    func anteCycleFiresMediumImpact() async {
         let recording = RecordingHapticsService()
         let vm = Self.makeVM(haptics: recording)
 
-        vm.incrementStagedAnte()
-        vm.decrementStagedAnte()
+        vm.cycleAnteBet() // 5 → 25
+        vm.cycleAnteBet() // 25 → 100
         #expect(recording.events == [.impact(.medium), .impact(.medium)])
     }
 
