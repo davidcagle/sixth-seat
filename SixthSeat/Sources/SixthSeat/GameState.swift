@@ -132,9 +132,14 @@ public final class GameState {
         guard anteBet > 0 else {
             return .failure(.invalidBetAmount(reason: "Cannot deal without an Ante bet"))
         }
-        // 2 hole cards each — interleaved as in a real deal.
+        // Real-table sequence: dealer pitches all 9 cards out at hand start
+        // (2 hole cards each + 5 community), then turns them at the right
+        // moments. We deal them all here so the view can render the
+        // community row face-down from deal time and the existing reveal
+        // choreography flips them in place at phase transitions.
         playerHoleCards = [deck.deal()!, deck.deal()!]
         dealerHoleCards = [deck.deal()!, deck.deal()!]
+        communityCards  = [deck.deal()!, deck.deal()!, deck.deal()!, deck.deal()!, deck.deal()!]
         phase = .preFlopDecision
         return .success(())
     }
@@ -151,13 +156,11 @@ public final class GameState {
         }
         chipStore.chipBalance -= required
         playBet = required
-        dealCommunity(count: 5)
         resolve()
         return .success(())
     }
 
     private func checkPreFlop() -> Result<Void, GameError> {
-        dealCommunity(count: 3)
         phase = .postFlopDecision
         return .success(())
     }
@@ -171,13 +174,11 @@ public final class GameState {
         }
         chipStore.chipBalance -= required
         playBet = required
-        dealCommunity(count: 2)
         resolve()
         return .success(())
     }
 
     private func checkPostFlop() -> Result<Void, GameError> {
-        dealCommunity(count: 2)
         phase = .postRiverDecision
         return .success(())
     }
@@ -270,11 +271,4 @@ public final class GameState {
         return .success(())
     }
 
-    // MARK: - Helpers
-
-    private func dealCommunity(count: Int) {
-        for _ in 0..<count {
-            communityCards.append(deck.deal()!)
-        }
-    }
 }

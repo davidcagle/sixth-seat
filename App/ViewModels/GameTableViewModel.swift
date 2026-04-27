@@ -490,9 +490,20 @@ final class GameTableViewModel {
     }
 
     private func finalizeSettledState() {
-        // Mark every dealt card as revealed so face-up renders win out.
+        // Mark cards as revealed up to the visibility appropriate for the
+        // current phase. Community cards are dealt face-down at hand start
+        // (Session 12) and flip on phase transitions, so the bulk reveal
+        // can't blanket-flip them — at .preFlopDecision the community
+        // row is still face-down even though communityCards.count == 5.
         for card in playerHoleCards { revealedCards.insert(card) }
-        for card in communityCards  { revealedCards.insert(card) }
+        switch phase {
+        case .awaitingBets, .preFlopDecision:
+            break
+        case .postFlopDecision:
+            for card in communityCards.prefix(3) { revealedCards.insert(card) }
+        case .postRiverDecision, .resolving, .handComplete:
+            for card in communityCards { revealedCards.insert(card) }
+        }
         // On a fold, dealer cards stay face-down — Vegas tables don't expose
         // them and the player has surrendered the hand.
         if phase == .handComplete && !playerFolded {

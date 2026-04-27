@@ -139,33 +139,33 @@ struct AnimationTests {
         #expect(vm.isPlayerCardFaceDown(index: 1))
     }
 
-    @Test("Flop cards are face-down between checkPreFlop dispatch and reveal")
+    @Test("Flop cards [0,1,2] are face-down between checkPreFlop dispatch and reveal")
     func flopCardsFaceDownAtCheckPreFlop() async {
         let vm = Self.makeVM()
         vm.stagedAnte = 10
         vm.deal();          await drainAnimations(); vm.skipToSettled()
-        // Engine has dealt the flop synchronously inside checkPreFlop,
-        // but the spawned animation Task has not yet run any reveal.
-        // The user-visible frame at this moment must show all three
-        // flop cards face-down — the bug Session 14a fixed flipped them
-        // face-up immediately because positional identity reused the
-        // previous hand's face-up rotation.
+        // Session 12: all 5 community cards are dealt at .deal time, so
+        // they're already in `communityCards` here. The flop reveal flips
+        // [0,1,2] face-up; [3,4] stay face-down until the post-flop phase.
+        // The user-visible frame between checkPreFlop dispatch and the
+        // first reveal must show all 5 face-down.
         vm.checkPreFlop()
-        #expect(vm.communityCards.count == 3)
+        #expect(vm.communityCards.count == 5)
         #expect(vm.isCommunityCardFaceDown(index: 0))
         #expect(vm.isCommunityCardFaceDown(index: 1))
         #expect(vm.isCommunityCardFaceDown(index: 2))
     }
 
-    @Test("Turn and river cards are face-down between checkPostFlop dispatch and reveal")
+    @Test("Turn and river cards [3,4] are face-down between checkPostFlop dispatch and reveal")
     func turnAndRiverFaceDownAtCheckPostFlop() async {
         let vm = Self.makeVM()
         vm.stagedAnte = 10
         vm.deal();          await drainAnimations(); vm.skipToSettled()
         vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
-        // Flop is already revealed; engine has just dealt turn + river
-        // synchronously inside checkPostFlop. The new cards (indices 3
-        // and 4) must render face-down before their staggered reveal.
+        // Flop is revealed (cards [0,1,2] face-up). The turn and river
+        // (indices 3 and 4) were dealt at .deal time and have been
+        // sitting face-down in their final positions through the
+        // post-flop decision. They flip face-up here.
         vm.checkPostFlop()
         #expect(vm.communityCards.count == 5)
         #expect(vm.isCommunityCardFaceDown(index: 3))
@@ -177,14 +177,217 @@ struct AnimationTests {
         let vm = Self.makeVM()
         vm.stagedAnte = 10
         vm.deal();          await drainAnimations(); vm.skipToSettled()
-        // Pre-flop bet path: engine deals all 5 community cards in one
-        // synchronous step. Every slot must render face-down before the
-        // animateAllCommunity Task body fires its first reveal.
+        // Session 12: all 5 community cards are already present face-down
+        // from .deal time. betPreFlop kicks off the bulk reveal — every
+        // slot must still render face-down before the animateAllCommunity
+        // Task body fires its first reveal.
         vm.betPreFlop(multiplier: 3)
         #expect(vm.communityCards.count == 5)
         for i in 0..<5 {
             #expect(vm.isCommunityCardFaceDown(index: i))
         }
+    }
+
+    // MARK: - Session 12: deal-everything-face-down
+
+    @Test("Session 12: all 5 community cards are present and face-down immediately after DEAL")
+    func session12_allCommunityPresentFaceDownAtDeal() {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal()
+        // Synchronous frame right after DEAL — before the spawned animation
+        // Task gets to run any reveal. Casino-table behavior: the dealer
+        // pitches all 5 community cards out at hand start; they sit
+        // face-down in their final positions until phase transitions flip
+        // them in place. The view renders this state directly.
+        #expect(vm.communityCards.count == 5)
+        for i in 0..<5 {
+            #expect(vm.isCommunityCardFaceDown(index: i))
+        }
+    }
+
+    @Test("Session 12: community cards stay face-down after the player-deal flip completes")
+    func session12_communityStaysFaceDownAfterPlayerFlip() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal()
+        await drainAnimations()
+        // Player hole cards are now flipped face-up; we're sitting at
+        // .preFlopDecision waiting for player input. The 5 community
+        // cards must still be face-down — the burn pause / phase reveal
+        // hasn't run yet.
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.isPlayerCardFaceDown(index: 0) == false)
+        #expect(vm.isPlayerCardFaceDown(index: 1) == false)
+        #expect(vm.communityCards.count == 5)
+        for i in 0..<5 {
+            #expect(vm.isCommunityCardFaceDown(index: i))
+        }
+    }
+
+    @Test("Session 12: flop reveal flips [0,1,2] in stagger; [3,4] stay face-down throughout")
+    func session12_flopRevealStaggerLeavesTurnRiverFaceDown() async {
+        let clock = ManualAnimationClock()
+        let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        vm.stagedAnte = 10
+
+        // Drive deal to completion via the manual clock.
+        let drainAndResume: () async -> Void = {
+            await Self.yieldMany()
+            while clock.pendingSleeps > 0 || vm.isAnimating {
+                if clock.pendingSleeps > 0 { clock.resumeNext() }
+                await Self.yieldMany()
+            }
+        }
+        vm.deal(); await drainAndResume()
+
+        // Step through animateFlop: burn pause, reveal[0], 200ms, reveal[1],
+        // 200ms, reveal[2], 250ms. Cards [3,4] remain face-down at every
+        // beat — only the flop slots flip during this phase.
+        vm.checkPreFlop()
+        await Self.yieldMany()
+        // Burn pause queued; no reveals yet.
+        for i in 0..<5 { #expect(vm.isCommunityCardFaceDown(index: i)) }
+
+        clock.resumeNext(); await Self.yieldMany() // burn pause done → reveal[0]
+        #expect(vm.isCommunityCardFaceDown(index: 0) == false)
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[1]
+        #expect(vm.isCommunityCardFaceDown(index: 1) == false)
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[2]
+        #expect(vm.isCommunityCardFaceDown(index: 2) == false)
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+
+        // Drain final flip duration and settle.
+        while clock.pendingSleeps > 0 || vm.isAnimating {
+            if clock.pendingSleeps > 0 { clock.resumeNext() }
+            await Self.yieldMany()
+        }
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+        #expect(vm.phase == .postFlopDecision)
+    }
+
+    @Test("Session 12: turn+river reveal preserves [0,1,2] face-up state and flips [3,4]")
+    func session12_turnRiverPreservesFlopFaceUp() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();         await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop(); await drainAnimations(); vm.skipToSettled()
+
+        // After flop reveal: [0,1,2] are face-up; [3,4] are face-down.
+        let flopCards = Array(vm.communityCards.prefix(3))
+        for card in flopCards {
+            #expect(vm.revealedCards.contains(card))
+        }
+        #expect(vm.isCommunityCardFaceDown(index: 3))
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        // Turn + river flipped, and the flop cards never left revealedCards
+        // (no re-flip back to face-down at any point).
+        for card in vm.communityCards {
+            #expect(vm.revealedCards.contains(card))
+        }
+        for i in 0..<5 {
+            #expect(vm.isCommunityCardFaceDown(index: i) == false)
+        }
+        #expect(vm.phase == .postRiverDecision)
+    }
+
+    @Test("Session 12: bet pre-flop reveal flips all 5 community cards in sequence from face-down")
+    func session12_allCommunityRevealStepwise() async {
+        let clock = ManualAnimationClock()
+        let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        vm.stagedAnte = 10
+
+        let drainAndResume: () async -> Void = {
+            await Self.yieldMany()
+            while clock.pendingSleeps > 0 || vm.isAnimating {
+                if clock.pendingSleeps > 0 { clock.resumeNext() }
+                await Self.yieldMany()
+            }
+        }
+        vm.deal(); await drainAndResume()
+
+        // betPreFlop kicks off animateAllCommunity:
+        // burn pause → reveal[0] → 150ms → reveal[1] → 150ms → reveal[2]
+        // → 150ms → reveal[3] → 150ms → reveal[4] → 250ms.
+        // After the deal animation has settled and chips were debited.
+        vm.betPreFlop(multiplier: 3)
+        await Self.yieldMany()
+        // Burn pause queued; nothing revealed yet.
+        for i in 0..<5 { #expect(vm.isCommunityCardFaceDown(index: i)) }
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[0]
+        #expect(vm.isCommunityCardFaceDown(index: 0) == false)
+        for i in 1..<5 { #expect(vm.isCommunityCardFaceDown(index: i)) }
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[1]
+        #expect(vm.isCommunityCardFaceDown(index: 1) == false)
+        for i in 2..<5 { #expect(vm.isCommunityCardFaceDown(index: i)) }
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[2]
+        #expect(vm.isCommunityCardFaceDown(index: 2) == false)
+        for i in 3..<5 { #expect(vm.isCommunityCardFaceDown(index: i)) }
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[3]
+        #expect(vm.isCommunityCardFaceDown(index: 3) == false)
+        #expect(vm.isCommunityCardFaceDown(index: 4))
+
+        clock.resumeNext(); await Self.yieldMany() // → reveal[4]
+        #expect(vm.isCommunityCardFaceDown(index: 4) == false)
+    }
+
+    @Test("Session 12: a second hand starts with all 5 community cards face-down again")
+    func session12_secondHandStartsCommunityFaceDown() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+
+        // First hand: deal and walk through to handComplete with all cards
+        // revealed by skipToSettled.
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+        vm.betPostRiver();  await drainAnimations(); vm.skipToSettled()
+        // First-hand state: every community card is face-up.
+        for card in vm.communityCards {
+            #expect(vm.revealedCards.contains(card))
+        }
+        let firstHandDealId = vm.currentDealId
+
+        // Start a second hand via REBET — collectAndReset clears state,
+        // resetAnimationState clears revealedCards, and the deferred deal()
+        // re-deals 5 fresh community cards.
+        vm.rebet()
+        await drainAnimations()
+
+        // The second hand begins with all 5 community cards present and
+        // face-down. currentDealId has bumped, forcing SwiftUI to recreate
+        // the community CardViews per Project Convention #4 — the
+        // previous hand's face-up rotation cannot leak into this hand.
+        #expect(vm.phase == .preFlopDecision)
+        #expect(vm.communityCards.count == 5)
+        for i in 0..<5 {
+            #expect(vm.isCommunityCardFaceDown(index: i))
+        }
+        #expect(vm.currentDealId == firstHandDealId + 1)
+    }
+
+    /// Yields enough times for the @MainActor animation Task to advance to
+    /// its next suspend point under a `ManualAnimationClock`. Used by the
+    /// stepwise reveal tests above.
+    private static func yieldMany() async {
+        for _ in 0..<10 { await Task.yield() }
     }
 
     @Test("Dealer cards stay face-down until handComplete reveal")

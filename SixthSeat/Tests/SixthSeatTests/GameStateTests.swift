@@ -113,7 +113,7 @@ struct GameStateTests {
         #expect(game.phase == .awaitingBets)
     }
 
-    @Test("Deal hands 2 cards to player and 2 to dealer and advances to .preFlopDecision")
+    @Test("Deal hands 2 hole cards each plus all 5 community cards face-down")
     func dealAdvancesAndDistributesCards() {
         let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
@@ -122,7 +122,10 @@ struct GameStateTests {
         #expect(game.phase == .preFlopDecision)
         #expect(game.playerHoleCards.count == 2)
         #expect(game.dealerHoleCards.count == 2)
-        #expect(game.communityCards.isEmpty)
+        // Casino reality: dealer pitches all the cards out at the start of
+        // the hand. The view renders the community row face-down and flips
+        // them at the right phases.
+        #expect(game.communityCards.count == 5)
     }
 
     @Test("Cannot place Ante after the deal")
@@ -210,15 +213,17 @@ struct GameStateTests {
         #expect(game.playBet == 0)
     }
 
-    @Test("Checking pre-flop deals the flop and advances to .postFlopDecision")
-    func checkPreFlopDealsFlop() {
+    @Test("Checking pre-flop advances to .postFlopDecision (community cards already dealt)")
+    func checkPreFlopAdvancesPhase() {
         let (game, _) = Self.newGame()
         _ = game.perform(.placeAnte(amount: 10))
         _ = game.perform(.deal)
         let result = game.perform(.checkPreFlop)
         #expect(result.isSuccess)
         #expect(game.phase == .postFlopDecision)
-        #expect(game.communityCards.count == 3)
+        // Community cards were dealt at .deal time; phase transition does
+        // not touch the deck.
+        #expect(game.communityCards.count == 5)
         #expect(game.playBet == 0)
         #expect(game.lastHandResult == nil)
     }
