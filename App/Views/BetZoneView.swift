@@ -10,6 +10,10 @@ struct BetZoneView: View {
     let label: String
     let amount: Int
     var isActive: Bool = false
+    /// When true, the zone renders dimmed and ignores taps. Used by the
+    /// Session 12d affordability gates to signal that a tappable zone
+    /// (Trips) cannot accept input at the current balance / Ante.
+    var isDisabled: Bool = false
     var animation: BetZoneAnimation = .none
     var onTap: (() -> Void)? = nil
 
@@ -22,12 +26,15 @@ struct BetZoneView: View {
             default:           return 0
             }
         }()
-        let opacity: Double = {
+        let motionOpacity: Double = {
             switch animation {
             case .slidingDown, .slidingUp: return 0
             default:                       return 1
             }
         }()
+        // The disabled dim multiplies into the motion opacity so the
+        // slide-out fade still resolves to 0 cleanly.
+        let opacity = motionOpacity * (isDisabled ? 0.45 : 1.0)
 
         let content = ZStack {
             // The base bet zone — label + amount pill — plus a "matched"
@@ -46,7 +53,7 @@ struct BetZoneView: View {
         .offset(y: slideY)
         .opacity(opacity)
 
-        if let onTap {
+        if let onTap, !isDisabled {
             Button(action: onTap) { content }
                 .buttonStyle(.plain)
         } else {

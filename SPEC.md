@@ -248,6 +248,7 @@ OUT (V2):
 * `hasReceivedStarterBonus` is a persisted flag in `PersistenceKeys`. (Session 14a)
 * Production `ChipStore` = `UserDefaultsChipStore` (self-applies starter bonus). Test `ChipStore` = `InMemoryChipStore` (does not, by design). The invariant "balance is non-zero on first menu render" depends on `UserDefaultsChipStore` being the production path.
 * Bust detection fires in-game at the moment chip resolution lands balance at 0, not at the menu boundary. First bust awards 2,500 second-chance chips with a brand-voiced flash modal. Second bust routes to Chip Shop via flash modal with navigation button. The `hasReceivedSecondChanceBonus` flag is set at moment of award (before modal display) to protect against force-quit replay. The Session 14 menu-boundary check remains as a fallback. (Session 12b)
+* Bust threshold and affordability gates. The bust threshold is `chipBalance < GameConstants.minimumPlayableBalance`, where `minimumPlayableBalance = 2 × minimum chip value` (currently $10 with $5 minimum chips). This represents "cannot place Ante + Blind at the smallest cycle position." The DEAL button is gated on `chipBalance >= 6 × stagedAnte` (worst-case main bet: Ante + Blind + 4× Play). Trips is optional and is force-cleared and disabled when `chipBalance < (6 × stagedAnte) + tripsAmount`. Trips re-enables when affordable but does not auto-restore previous values. (Session 12d)
 
 ## Workflow Lessons
 

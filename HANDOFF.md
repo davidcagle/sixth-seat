@@ -2,9 +2,9 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-04-27 (Session 12c)
+**Last updated:** 2026-04-27 (Session 12d)
 
-**Project completion estimate:** ~86% complete (was ~84%)
+**Project completion estimate:** ~88% complete (was ~86%)
 
 ## Project History
 
@@ -17,6 +17,7 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 12a | Unify Ante bet zone to tap-to-cycle (parity with Trips); remove +/- stepper | 250 |
 | 12b | In-game bust flow: first-bust gift modal awards 2,500 chips, second-bust modal routes to Chip Shop; Chip Shop stub upgraded with back-to-menu | 267 |
 | 12c | Doc cleanup: consolidate architectural decisions to `SPEC.md`, record latent-invariant audit pattern as a Workflow Lesson | 267 |
+| 12d | Affordability gates and bust threshold correctness: DEAL gated on 6× Ante (worst-case main bet), Trips force-cleared when unaffordable, bust threshold raised to `minimumPlayableBalance` (2× minimum chip = $10) | 282 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
@@ -59,6 +60,17 @@ App description note:
 
 * Chip balance updates immediately on bet placement, before card reveal. Surfaced in post-Session 12 phone test. Current behavior is functionally correct (chips committed to the wager) but visually thin because there is no chip-stack visual on the bet zone — chips appear to vanish from the balance with nothing on the felt to show where they went. Fix is to add chip-stack visuals on bet zones during Session 18 (Fiverr asset integration), at which point the balance number dropping becomes visually consistent with chips having physically moved onto the table. Do not stopgap before real assets land — placeholder chip visuals will feel worse than the current state.
 * **Bet zone cycle ranges deferred to Session 15.** Current Ante cycle is $5 → $25 → $100 → $500 → $1,000 → $0 with no $10 option. Real Vegas tables expose different cycle ranges based on table minimums ($10 tables include $10/$15 bets, $25 tables minimum at $25, etc.). When Session 15 ships table selection UI, both the Ante and Trips cycles should become table-aware. The chip-set authenticity question ($10 as a real chip vs. as a stack of two $5s) also resolves in Session 15's context.
+* **Hand-result payout display opacity (deferred to Session 15 or later).** When a hand resolves with mixed paytables (Blind 3:2, Trips 6:1, Ante and Play 1:1), the headline payout number bears no obvious relationship to the four bets placed. The math is correct (verified to the penny against Vegas paytables) but the display does not show its work. Real fix: hand-complete UI should break out the four resolutions individually before showing the total. Example layout:
+    ```
+    ANTE WIN  +$25
+    BLIND WIN +$37 (3:2)
+    PLAY WIN  +$100
+    TRIPS     +$30 (6:1)
+    ─────────────────
+    TOTAL     +$192
+    ```
+    Surfaced post-Session 12d phone test. Defer to a Session 15 or later UX polish pass.
+* **Chip denomination constants partially centralized.** Session 12d introduced `GameConstants.minimumChipValue` (= 5) and `GameConstants.minimumPlayableBalance` (= 2 × minimum) in the engine package, and wired them through the bust threshold, `MainMenuLogic` thresholds, and the new affordability gates. The `anteCycle` (`[5, 25, 100, 500, 1000, 0]`) and `tripsCycle` (`[0, 5, 10, 25]`) literals in `GameTableViewModel.swift` still hard-code the raw amounts. Session 15's table-aware cycle work is the natural place to fold those into a constants table.
 
 ## What's Next
 
@@ -69,7 +81,8 @@ App description note:
 * **Session 12a — done.** Ante bet zone now uses tap-to-cycle ($5 → $25 → $100 → $500 → $1,000 → $0) mirroring the Trips zone. Removed the +/- stepper UI and the `incrementStagedAnte` / `decrementStagedAnte` / `anteSteps` model surface entirely. Blind continues to mirror Ante automatically (engine invariant in `placeAnte`), and DEAL is now disabled when the cycle lands on $0.
 * **Session 12b — done.** Bust detection moved in-game. After chip resolution lands the balance at zero, a brand-voiced flash modal fires: first bust awards 2,500 chips with a `.success` haptic and resets the table to `.awaitingBets` with Ante = $5 behind the modal; second bust uses a `.warning` haptic and routes to the Chip Shop via path replacement (`path = [.chipShop]`). The `hasReceivedSecondChanceBonus` flag is set at the moment of award, *before* the modal is shown, so a force-quit during the modal cannot replay the bonus. Chip Shop stub upgraded with title, "Chip bundles coming soon." line, and a Back to Menu button. The Session 14 menu-boundary check stays in place as a fallback.
 * **Session 12c — done.** Doc cleanup. The Architectural Decisions section was removed from `HANDOFF.md` (the prior 12b entry already lives in `SPEC.md`); per project convention, durable decisions live in `SPEC.md` and `HANDOFF.md` is operational state only. The latent-invariant audit pattern (recurring across Sessions 12, 12a, 12b) was promoted to a formal Workflow Lesson in `SPEC.md`. No code or test changes; test count remains 267.
-* **Next firm step: Session 15 — Settings + Apple 4.3 disclosures + How to Play content.** Also resolves table-aware bet zone cycle ranges (currently deferred). Real Chip Shop with StoreKit IAP ships in Session 16.
+* **Session 12d — done.** Affordability gates and bust threshold correctness. The bust trigger now fires when `chipBalance < GameConstants.minimumPlayableBalance` (= 2 × minimum chip value = $10), not just at exact zero — a player who lands at $5 after a fold can no longer be stranded. The DEAL button is gated on `chipBalance >= 6 × stagedAnte` (worst-case Ante + Blind + 4× pre-flop Play); below that the button greys out and the player cycles Ante down to find an affordable value. Trips is force-cleared and disabled when balance covers the worst-case main bet but not Trips on top, and re-enables (without auto-restoring a prior amount) when the player cycles Ante down enough. The Session 14 menu-boundary fallback uses the same threshold. New `GameConstants` enum in the engine package centralizes the minimum chip value and the playable threshold. Test count: 282 (124 engine + 158 app, +15 from Session 12c).
+* **Next firm step: Session 15 — Settings + Apple 4.3 disclosures + How to Play content.** Also resolves two coupled deferred items: table-aware bet zone cycle ranges and the hand-result payout breakdown display. Real Chip Shop with StoreKit IAP ships in Session 16.
 
 ## Known Gaps and Tooling Needs
 

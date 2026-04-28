@@ -147,13 +147,30 @@ struct SecondChanceBonusTests {
         #expect(store.hasReceivedSecondChanceBonus == true)
     }
 
-    @Test("Does not trigger when balance is above zero")
+    @Test("Grants chips when balance is below the playable threshold (Session 12d)")
+    func grantsBonusBelowPlayableThreshold() {
+        // Balance 5 < minimumPlayableBalance (10) — the player can't
+        // afford even the smallest Ante + Blind cycle, so the bonus
+        // applies. Pre-Session 12d this would have skipped because
+        // the gate was `balance == 0`.
+        let store = InMemoryChipStore(chipBalance: 5)
+        let applied = BonusLogic.applySecondChanceBonusIfEligible(store: store)
+
+        #expect(applied == true)
+        #expect(store.chipBalance == 2_505)
+        #expect(store.hasReceivedSecondChanceBonus == true)
+    }
+
+    @Test("Does not trigger when balance meets the playable threshold")
     func skipsWhenPlayerStillHasChips() {
-        let store = InMemoryChipStore(chipBalance: 1)
+        // Balance 10 is exactly `minimumPlayableBalance` — the player
+        // can still afford Ante + Blind at the smallest cycle step,
+        // so the bonus does not fire.
+        let store = InMemoryChipStore(chipBalance: GameConstants.minimumPlayableBalance)
         let applied = BonusLogic.applySecondChanceBonusIfEligible(store: store)
 
         #expect(applied == false)
-        #expect(store.chipBalance == 1)
+        #expect(store.chipBalance == GameConstants.minimumPlayableBalance)
         #expect(store.hasReceivedSecondChanceBonus == false)
     }
 
@@ -169,5 +186,23 @@ struct SecondChanceBonusTests {
         #expect(applied == false)
         #expect(store.chipBalance == 0)
         #expect(store.hasReceivedSecondChanceBonus == true)
+    }
+}
+
+@Suite("GameConstants (Session 12d)")
+struct GameConstantsTests {
+
+    @Test("minimumChipValue is the V1 chip floor")
+    func minimumChipValueIsFive() {
+        #expect(GameConstants.minimumChipValue == 5)
+    }
+
+    @Test("minimumPlayableBalance derives as 2× the minimum chip value")
+    func minimumPlayableBalanceDerivesFromChipValue() {
+        // The threshold represents Ante + Blind at the smallest cycle
+        // step, so it must always equal 2× the chip floor — never a
+        // hard-coded magic number.
+        #expect(GameConstants.minimumPlayableBalance == GameConstants.minimumChipValue * 2)
+        #expect(GameConstants.minimumPlayableBalance == 10)
     }
 }

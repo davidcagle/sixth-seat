@@ -15,22 +15,31 @@ enum MenuDestination: Hashable {
 /// the SwiftUI view hierarchy.
 enum MainMenuLogic {
 
-    /// V1 default table minimum stake.
-    static let tableMinimumStake = 5
+    /// V1 default table minimum stake. Mirrors the engine's smallest
+    /// chip denomination so the menu and the bet zones agree on what
+    /// "minimum" means.
+    static let tableMinimumStake = GameConstants.minimumChipValue
 
-    /// Play is enabled when the player can either afford the minimum
-    /// ante OR is busted but still has the second-chance bonus to
-    /// claim. Sub-minimum non-zero balances (1–4) are disabled — those
-    /// only happen if the player partially withdraws via Chip Shop.
+    /// Smallest balance at which a hand is playable: enough to cover
+    /// Ante + Blind at the cycle floor. Below this the player is
+    /// functionally bust. (Session 12d)
+    static let minimumPlayableBalance = GameConstants.minimumPlayableBalance
+
+    /// Play is enabled when the player can afford the minimum playable
+    /// balance OR is functionally bust but still has the second-chance
+    /// bonus to claim. Sub-threshold non-zero balances (1–9) on a
+    /// rescue-spent store are disabled — the bust modal owns that
+    /// state and routes to the Chip Shop.
     static func playEnabled(balance: Int, hasUsedSecondChance: Bool) -> Bool {
-        if balance >= tableMinimumStake { return true }
-        if balance == 0 && !hasUsedSecondChance { return true }
+        if balance >= minimumPlayableBalance { return true }
+        if !hasUsedSecondChance { return true }
         return false
     }
 
-    /// "Visit Chip Shop to continue" hint: busted with no rescue left.
+    /// "Visit Chip Shop to continue" hint: below the playable threshold
+    /// with no rescue left.
     static func showsBustedHint(balance: Int, hasUsedSecondChance: Bool) -> Bool {
-        balance == 0 && hasUsedSecondChance
+        balance < minimumPlayableBalance && hasUsedSecondChance
     }
 
     /// Apply the second-chance bonus on game-entry if eligible. The
@@ -45,7 +54,7 @@ enum MainMenuLogic {
     /// path — only after the starter has been awarded does it apply.
     @discardableResult
     static func handlePlayTap(store: ChipStoreProtocol) -> Bool {
-        if store.chipBalance == 0
+        if store.chipBalance < minimumPlayableBalance
             && store.hasReceivedStarterBonus
             && !store.hasReceivedSecondChanceBonus {
             BonusLogic.applySecondChanceBonusIfEligible(store: store)

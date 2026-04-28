@@ -216,6 +216,26 @@ final class GameTableViewModel {
         phase == .awaitingBets && anteBet > 0
     }
 
+    /// True when the player has the chips to commit to a worst-case
+    /// main-bet round at the currently staged Ante: Ante + Blind +
+    /// (4 × Ante) for the largest pre-flop Play bet = 6 × Ante. The
+    /// DEAL button gates on this so the player can never start a hand
+    /// they can't complete. (Session 12d)
+    var canAffordDeal: Bool {
+        phase == .awaitingBets
+            && stagedAnte > 0
+            && chipBalance >= stagedAnte * 6
+    }
+
+    /// True when the player can afford the worst-case main bet *and*
+    /// the staged Trips on top: 6 × Ante + Trips. When false but
+    /// `canAffordDeal` is true, the Trips zone force-clears to $0 so
+    /// the player can still deal without Trips. (Session 12d)
+    var canAffordTrips: Bool {
+        phase == .awaitingBets
+            && chipBalance >= stagedAnte * 6 + stagedTrips
+    }
+
     /// True when the player has a prior hand to repeat and can afford its
     /// Ante (Blind auto-matches, so affordability is 2× the stored Ante).
     var canRebet: Bool {
@@ -230,10 +250,16 @@ final class GameTableViewModel {
         phase == .awaitingBets ? stagedTrips : tripsBet
     }
 
-    /// Whether the Trips zone should be interactive. Only true while the
-    /// player is placing bets — once DEAL fires, the zone locks.
+    /// Whether the Trips zone should be interactive. Locked outside
+    /// `.awaitingBets`, and locked when the staged Ante doesn't leave
+    /// room for any Trips step on top of the worst-case main bet.
+    /// (Session 12d affordability gate.)
     var isTripsZoneInteractive: Bool {
-        phase == .awaitingBets
+        guard phase == .awaitingBets else { return false }
+        // The smallest non-zero Trips step is the minimum chip value;
+        // if even that doesn't fit on top of the worst-case main bet,
+        // the zone is unaffordable for this Ante.
+        return chipBalance >= stagedAnte * 6 + GameConstants.minimumChipValue
     }
 
     /// Whether the Ante zone should be interactive. Only true while the
@@ -254,6 +280,10 @@ final class GameTableViewModel {
     /// auto-matches Ante, so affordability is checked at 2× the step.
     /// No-op outside `.awaitingBets`. The view layer additionally gates
     /// onTap by `!isAnimating`, mirroring the Trips zone.
+    ///
+    /// After landing on a new Ante, any staged Trips that would push
+    /// the total commitment above the worst-case affordable threshold
+    /// (6 × Ante + Trips) is force-cleared. (Session 12d)
     func cycleAnteBet() {
         guard phase == .awaitingBets else { return }
         let before = stagedAnte
@@ -264,18 +294,30 @@ final class GameTableViewModel {
         if stagedAnte != before {
             haptics.impact(.medium)
         }
+        // Drop staged Trips if the new Ante leaves no room for it on
+        // top of the worst-case main bet. Trips does NOT auto-restore
+        // when the player cycles back down — once cleared, the player
+        // must re-tap Trips deliberately.
+        if stagedTrips > 0 && chipBalance < stagedAnte * 6 + stagedTrips {
+            stagedTrips = 0
+        }
     }
 
     /// Advances the Trips side bet through off → $5 → $10 → $25 → off.
-    /// Unaffordable steps fall back to "off" so we never hit an engine
-    /// error mid-cycle. No-op outside `.awaitingBets`.
+    /// Each candidate is gated against the worst-case main bet plus the
+    /// step itself (6 × Ante + Trips) — unaffordable steps fall back to
+    /// "off". No-op outside `.awaitingBets`. Also a silent no-op when
+    /// the zone is unaffordable (`isTripsZoneInteractive` false): the
+    /// view-layer `onTap` is already nil in that case, but a programmatic
+    /// caller is held to the same gate. (Session 12d)
     func cycleTripsBet() {
         guard phase == .awaitingBets else { return }
+        guard isTripsZoneInteractive else { return }
         let before = stagedTrips
         let currentIndex = tripsCycle.firstIndex(of: stagedTrips) ?? 0
         let nextIndex = (currentIndex + 1) % tripsCycle.count
         let next = tripsCycle[nextIndex]
-        stagedTrips = (next == 0 || chipBalance >= next) ? next : 0
+        stagedTrips = (next == 0 || chipBalance >= stagedAnte * 6 + next) ? next : 0
         if stagedTrips != before {
             haptics.impact(.medium)
         }
@@ -858,7 +900,9 @@ final class GameTableViewModel {
     // MARK: - Bust flash
 
     /// Detects an in-game bust at the moment chip resolution lands the
-    /// balance at exactly 0, and presents the appropriate flash modal:
+    /// balance below `GameConstants.minimumPlayableBalance` — the
+    /// smallest balance that can still afford the minimum Ante + Blind
+    /// cycle position — and presents the appropriate flash modal:
     /// first-bust awards the second-chance bonus and resets the table to
     /// `.awaitingBets`; second-bust offers a route to the Chip Shop. The
     /// `hasReceivedSecondChanceBonus` flag is set at the moment the bonus
@@ -866,7 +910,7 @@ final class GameTableViewModel {
     /// the modal cannot replay the bonus on relaunch.
     private func maybeShowBustFlash() {
         guard phase == .handComplete else { return }
-        guard chipStore.chipBalance == 0 else { return }
+        guard chipStore.chipBalance < GameConstants.minimumPlayableBalance else { return }
         guard bustModal == nil else { return }
 
         if chipStore.hasReceivedSecondChanceBonus {

@@ -308,8 +308,11 @@ struct GameTableViewModelTests {
 
     @Test("Cycling Trips skips an unaffordable step to off")
     func cycleTripsSkipsUnaffordableToOff() {
-        // 15 chips: $5 OK, $10 OK, $25 unaffordable → should skip to off.
-        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 15), bypassAnimation: true)
+        // Session 12d gate: each Trips step must fit on top of the
+        // worst-case main bet (6 × stagedAnte). At Ante=$5 the floor
+        // is $30. Balance $40 covers $5 ($35) and $10 ($40), but $25
+        // ($55) overshoots — that step falls back to "off".
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 40), bypassAnimation: true)
 
         vm.cycleTripsBet()
         #expect(vm.stagedTrips == 5)
@@ -593,6 +596,115 @@ struct GameTableViewModelTests {
 
         #expect(vm.lastAnteBet == 25)
         #expect(vm.lastTripsBet == 0)
+    }
+
+    // MARK: - DEAL gate (Session 12d affordability)
+
+    @Test("DEAL is enabled when chipBalance equals 6× stagedAnte (boundary)")
+    func dealEnabledAtSixTimesAnte() {
+        // 6× covers Ante + Blind + 4× pre-flop Play — the worst case
+        // the player could be locked into after dealing. At exactly 6×
+        // the player can complete every betting branch.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 30), bypassAnimation: true)
+        #expect(vm.stagedAnte == 5)
+        #expect(vm.canAffordDeal == true)
+    }
+
+    @Test("DEAL is disabled when chipBalance falls one chip short of 6× stagedAnte")
+    func dealDisabledJustBelowBoundary() {
+        // 29 chips at Ante=5 — covers Ante + Blind ($10) and even a
+        // 4× pre-flop bet ($20 + $10 = $30 needed, only 29 available).
+        // The new Session 12d gate refuses DEAL here.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 29), bypassAnimation: true)
+        #expect(vm.stagedAnte == 5)
+        #expect(vm.canAffordDeal == false)
+    }
+
+    @Test("DEAL is disabled when stagedAnte is high enough that 4× Play would not fit")
+    func dealDisabledWhenWorstCasePlayUnaffordable() {
+        // 100 chips can cover Ante + Blind at $25 ($50 needed) but not
+        // the worst-case round (6 × $25 = $150). Pre-Session 12d this
+        // would have allowed DEAL; the new gate refuses.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 100), bypassAnimation: true)
+        vm.cycleAnteBet() // 5 → 25
+        #expect(vm.stagedAnte == 25)
+        #expect(vm.canAffordDeal == false)
+    }
+
+    @Test("DEAL re-enables as the player cycles Ante back down to an affordable value")
+    func dealReEnablesAfterCyclingAnteDown() {
+        // 30 chips: only $5 Ante (worst case $30) is affordable. The
+        // first cycle (5 → 25) requires $50 to even land on $25, so it
+        // falls back to $0 (canAffordDeal still false because Ante=0).
+        // Cycling once more wraps back to $5 — DEAL re-enables.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 30), bypassAnimation: true)
+        #expect(vm.canAffordDeal == true)
+
+        vm.cycleAnteBet() // 5 → next step $25 ($50 needed at 2×) — falls to 0
+        #expect(vm.stagedAnte == 0)
+        #expect(vm.canAffordDeal == false)
+
+        vm.cycleAnteBet() // 0 → 5 (wrap)
+        #expect(vm.stagedAnte == 5)
+        #expect(vm.canAffordDeal == true)
+    }
+
+    // MARK: - Trips affordability gate (Session 12d)
+
+    @Test("Trips zone is interactive when balance covers the worst-case main bet plus the smallest Trips step")
+    func tripsInteractiveWhenAffordable() {
+        // 35 chips at Ante=5: 6×5 + 5 = 35. The smallest Trips step
+        // ($5) just fits, so the zone accepts taps.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 35), bypassAnimation: true)
+        #expect(vm.canAffordDeal == true)
+        #expect(vm.isTripsZoneInteractive == true)
+    }
+
+    @Test("Trips zone disables when balance covers main bet but not the smallest Trips step")
+    func tripsZoneDisabledWhenMainAffordableButTripsNot() {
+        // 32 chips at Ante=5: covers 6×5 = 30 (DEAL OK) but not 30+5 = 35
+        // (no Trips step affordable). The zone goes inert.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 32), bypassAnimation: true)
+        #expect(vm.canAffordDeal == true)
+        #expect(vm.isTripsZoneInteractive == false)
+    }
+
+    @Test("Cycling Ante up force-clears Trips when the new total overshoots balance")
+    func anteCycleForceClearsTrips() {
+        // Balance 160 is one chip short of the 175 boundary above:
+        // at Ante=$25 with Trips=$25, 175 > 160 → Trips must clear.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 160), bypassAnimation: true)
+        vm.cycleTripsBet(); vm.cycleTripsBet(); vm.cycleTripsBet()
+        #expect(vm.stagedTrips == 25)
+
+        vm.cycleAnteBet() // 5 → 25 (2×25=50 lands); 6×25+25=175 > 160 → force-clear
+        #expect(vm.stagedAnte == 25)
+        #expect(vm.stagedTrips == 0)
+    }
+
+    @Test("Cycling Ante down does NOT auto-restore a previously-cleared Trips value")
+    func anteCycleDownDoesNotRestoreTrips() {
+        // Balance 160 lets Trips=$25 sit on top of Ante=$5 (worst case
+        // 30 + 25 = 55 ≤ 160), but not on top of Ante=$25 (175 > 160) —
+        // so cycling Ante up force-clears Trips. Cycling Ante back down
+        // to $5 must NOT auto-restore the prior Trips value.
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 160), bypassAnimation: true)
+        vm.cycleTripsBet(); vm.cycleTripsBet(); vm.cycleTripsBet() // 25
+        vm.cycleAnteBet() // 5 → 25, force-clears Trips
+        #expect(vm.stagedAnte == 25)
+        #expect(vm.stagedTrips == 0)
+
+        // Walk Ante back to $5: 25 → 100 (2×100=200 unaffordable, falls
+        // to 0) → 0 → 5. Two cycle taps land on $5.
+        vm.cycleAnteBet()
+        #expect(vm.stagedAnte == 0)
+        vm.cycleAnteBet()
+        #expect(vm.stagedAnte == 5)
+
+        // Trips zone is once again affordable at Ante=$5 (160 >= 35),
+        // but stagedTrips stays at $0 — no auto-restore.
+        #expect(vm.isTripsZoneInteractive == true)
+        #expect(vm.stagedTrips == 0)
     }
 
     /// Most tests want to exercise the view model without the one-time

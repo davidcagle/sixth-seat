@@ -20,12 +20,15 @@ public enum BonusLogic {
         return true
     }
 
-    /// Grants the second-chance bonus only when the player is busted
-    /// (balance == 0) and has not yet received this bonus.
+    /// Grants the second-chance bonus when the player is functionally
+    /// bust — balance below `GameConstants.minimumPlayableBalance` (i.e.
+    /// can't afford the smallest Ante + Blind cycle position) — and has
+    /// not yet received this bonus.
     /// - Returns: `true` if chips were added on this call.
     @discardableResult
     public static func applySecondChanceBonusIfEligible(store: ChipStoreProtocol) -> Bool {
-        guard store.chipBalance == 0, !store.hasReceivedSecondChanceBonus else {
+        guard store.chipBalance < GameConstants.minimumPlayableBalance,
+              !store.hasReceivedSecondChanceBonus else {
             return false
         }
         store.chipBalance += secondChanceBonusAmount

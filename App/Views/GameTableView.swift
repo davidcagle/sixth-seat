@@ -181,11 +181,18 @@ struct GameTableView: View {
     // MARK: - Bet zones
 
     private var betZones: some View {
-        HStack(spacing: 12) {
+        // Trips dims when the staged Ante leaves no room for a Trips
+        // step on top of the worst-case main bet — only while bets are
+        // still open. During animation/play we leave the zone at full
+        // opacity so chip-resolution motion remains legible.
+        let tripsDisabled = viewModel.phase == .awaitingBets
+            && !viewModel.isTripsZoneInteractive
+        return HStack(spacing: 12) {
             BetZoneView(
                 label: "TRIPS",
                 amount: viewModel.displayedTripsBet,
                 isActive: viewModel.isTripsZoneInteractive && !viewModel.isAnimating,
+                isDisabled: tripsDisabled,
                 animation: viewModel.tripsAnimation,
                 onTap: (viewModel.isTripsZoneInteractive && !viewModel.isAnimating) ? { viewModel.cycleTripsBet() } : nil
             )
@@ -270,9 +277,7 @@ struct GameTableView: View {
         VStack(spacing: 10) {
             primaryButton(
                 "DEAL",
-                enabled: !viewModel.isAnimating
-                      && viewModel.stagedAnte > 0
-                      && viewModel.chipBalance >= viewModel.stagedAnte * 2
+                enabled: !viewModel.isAnimating && viewModel.canAffordDeal
             ) {
                 viewModel.deal()
             }

@@ -9,22 +9,28 @@ struct MainMenuViewTests {
 
     // MARK: - Play button enabled state
 
-    @Test("Play enabled when balance is well above the minimum")
+    @Test("Play enabled when balance is well above the playable threshold")
     func playEnabledAboveMinimum() {
         #expect(MainMenuLogic.playEnabled(balance: 1_000, hasUsedSecondChance: false))
         #expect(MainMenuLogic.playEnabled(balance: 1_000, hasUsedSecondChance: true))
     }
 
-    @Test("Play enabled at exactly the table minimum")
+    @Test("Play enabled at exactly the playable threshold")
     func playEnabledAtMinimum() {
-        #expect(MainMenuLogic.playEnabled(balance: MainMenuLogic.tableMinimumStake, hasUsedSecondChance: false))
-        #expect(MainMenuLogic.playEnabled(balance: MainMenuLogic.tableMinimumStake, hasUsedSecondChance: true))
+        // At minimumPlayableBalance the player can afford Ante + Blind
+        // at the smallest cycle step — playable in both flag states.
+        // (Pre-Session 12d this used `tableMinimumStake = 5`; the new
+        // threshold is `minimumPlayableBalance = 10`.)
+        #expect(MainMenuLogic.playEnabled(balance: MainMenuLogic.minimumPlayableBalance, hasUsedSecondChance: false))
+        #expect(MainMenuLogic.playEnabled(balance: MainMenuLogic.minimumPlayableBalance, hasUsedSecondChance: true))
     }
 
-    @Test("Play disabled with sub-minimum non-zero balance")
+    @Test("Play disabled below threshold once the rescue has been used")
     func playDisabledSubMinimum() {
-        #expect(!MainMenuLogic.playEnabled(balance: 1, hasUsedSecondChance: false))
+        #expect(!MainMenuLogic.playEnabled(balance: 1, hasUsedSecondChance: true))
         #expect(!MainMenuLogic.playEnabled(balance: 4, hasUsedSecondChance: true))
+        #expect(!MainMenuLogic.playEnabled(balance: 5, hasUsedSecondChance: true))
+        #expect(!MainMenuLogic.playEnabled(balance: 9, hasUsedSecondChance: true))
     }
 
     @Test("Play enabled when busted but second-chance bonus is still available")
@@ -39,7 +45,7 @@ struct MainMenuViewTests {
 
     // MARK: - Busted hint visibility
 
-    @Test("Busted hint hidden when balance is positive")
+    @Test("Busted hint hidden when balance is positive and above threshold")
     func bustedHintHiddenAboveZero() {
         #expect(!MainMenuLogic.showsBustedHint(balance: 100, hasUsedSecondChance: false))
         #expect(!MainMenuLogic.showsBustedHint(balance: 100, hasUsedSecondChance: true))
@@ -48,12 +54,14 @@ struct MainMenuViewTests {
     @Test("Busted hint hidden when busted but rescue still available")
     func bustedHintHiddenWithRescue() {
         #expect(!MainMenuLogic.showsBustedHint(balance: 0, hasUsedSecondChance: false))
+        #expect(!MainMenuLogic.showsBustedHint(balance: 5, hasUsedSecondChance: false))
     }
 
     @Test("Busted hint shown when busted with no rescue left")
     func bustedHintShownNoRescue() {
         #expect(MainMenuLogic.showsBustedHint(balance: 0, hasUsedSecondChance: true))
     }
+
 
     // MARK: - Play tap & second-chance bonus wiring
 
@@ -139,6 +147,48 @@ struct MainMenuViewTests {
         #expect(store.chipBalance == 0)
         #expect(store.hasReceivedSecondChanceBonus == true)
         #expect(shouldNavigate == false)
+    }
+
+    // MARK: - Session 12d menu-boundary fallback
+
+    @Test("Play tap with sub-threshold non-zero balance fires the first-bust rescue (Session 12d)")
+    func playTapBelowThresholdFiresFirstBust() {
+        // The post-bust menu fallback now extends beyond exact-zero:
+        // a balance of $5 with the starter received and no rescue used
+        // yet is functionally bust and should award the second-chance
+        // bonus on Play tap, just like a balance of $0 would.
+        let store = InMemoryChipStore(
+            chipBalance: 5,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: false
+        )
+
+        let shouldNavigate = MainMenuLogic.handlePlayTap(store: store)
+
+        // 5 + 2,500 = 2,505 — bonus stacks onto whatever the player had.
+        #expect(store.chipBalance == 5 + BonusLogic.secondChanceBonusAmount)
+        #expect(store.hasReceivedSecondChanceBonus == true)
+        #expect(shouldNavigate == true)
+    }
+
+    @Test("Play tap with sub-threshold balance and rescue spent blocks navigation (Session 12d)")
+    func playTapBelowThresholdAfterRescueBlocks() {
+        // Second-bust routing at the menu: balance below the playable
+        // threshold with the rescue already used means Play is blocked.
+        // The view layer surfaces the busted hint and routes the player
+        // to the Chip Shop.
+        let store = InMemoryChipStore(
+            chipBalance: 5,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: true
+        )
+
+        let shouldNavigate = MainMenuLogic.handlePlayTap(store: store)
+
+        #expect(store.chipBalance == 5) // unchanged
+        #expect(store.hasReceivedSecondChanceBonus == true)
+        #expect(shouldNavigate == false)
+        #expect(MainMenuLogic.showsBustedHint(balance: store.chipBalance, hasUsedSecondChance: true))
     }
 
     // MARK: - Balance formatting

@@ -33,6 +33,45 @@ struct BustFlowTests {
         for _ in 0..<10 { await Task.yield() }
     }
 
+    // MARK: - Threshold (Session 12d)
+
+    @Test("Bust modal fires when the hand resolves below the playable threshold")
+    func bustFiresBelowPlayableThreshold() {
+        // Start at 25 with Ante=10 → fold drops the player to 5, which
+        // is below `minimumPlayableBalance` (10). The first-bust modal
+        // and rescue bonus must fire even though the balance is non-zero.
+        let store = InMemoryChipStore(
+            chipBalance: 25,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: false
+        )
+        let vm = Self.playFoldHand(store: store)
+
+        // Balance was 5 immediately after the fold; the first-bust path
+        // awarded 2,500 chips, landing the post-rescue balance at 2,505.
+        #expect(vm.bustModal == .firstBust)
+        #expect(store.hasReceivedSecondChanceBonus == true)
+        #expect(store.chipBalance == 5 + BonusLogic.secondChanceBonusAmount)
+    }
+
+    @Test("Bust modal does NOT fire when the hand resolves at exactly the playable threshold")
+    func bustDoesNotFireAtThreshold() {
+        // Start at 30 with Ante=10 → fold drops the player to 10, which
+        // is exactly `minimumPlayableBalance`. The player can still
+        // place Ante + Blind at the smallest cycle step, so the bust
+        // modal does not fire.
+        let store = InMemoryChipStore(
+            chipBalance: 30,
+            hasReceivedStarterBonus: true,
+            hasReceivedSecondChanceBonus: false
+        )
+        let vm = Self.playFoldHand(store: store)
+
+        #expect(vm.chipBalance == GameConstants.minimumPlayableBalance)
+        #expect(vm.bustModal == nil)
+        #expect(store.hasReceivedSecondChanceBonus == false)
+    }
+
     // MARK: - Trigger gate
 
     @Test("No bust modal fires when the hand resolves to a positive balance")

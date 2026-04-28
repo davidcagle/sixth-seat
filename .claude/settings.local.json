@@ -55,7 +55,15 @@
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test)",
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project SixthSeat.xcodeproj -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17\")",
       "Bash(git checkout *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(xcodebuild -list -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c/SixthSeat.xcodeproj\")",
+      "Bash(sudo -n true)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -list -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c/SixthSeat.xcodeproj\")",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c/SixthSeat.xcodeproj\" -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17,OS=latest\")",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c/SixthSeat.xcodeproj\" -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17,OS=latest\")",
+      "Bash(git -C \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c\" add -A)",
+      "Bash(git -C \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c\" status)"
     ]
   }
 }
