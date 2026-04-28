@@ -7,6 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0000000000000000000010C1 /* CeremonyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000012B1 /* CeremonyTests.swift */; };
+		C0000000000000000000011C1 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000013B1 /* HapticsService.swift */; };
+		C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000014B1 /* SystemHapticsService.swift */; };
+		C0000000000000000000013C1 /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000015B1 /* MainMenuView.swift */; };
+		C0000000000000000000014C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000016B1 /* SettingsView.swift */; };
+		C0000000000000000000015C1 /* ChipShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000017B1 /* ChipShopView.swift */; };
+		C0000000000000000000016C1 /* HowToPlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000018B1 /* HowToPlayView.swift */; };
+		C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000019B1 /* MainMenuViewTests.swift */; };
+		C0000000000000000000018C1 /* BustFlashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001AB1 /* BustFlashView.swift */; };
+		C0000000000000000000019C1 /* BustFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001BB1 /* BustFlowTests.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
@@ -22,16 +32,6 @@
 		C00000000000000000000DC1 /* AnimationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000FB1 /* AnimationModel.swift */; };
 		C00000000000000000000EC1 /* AnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000010B1 /* AnimationTests.swift */; };
 		C00000000000000000000FC1 /* CeremonyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000011B1 /* CeremonyView.swift */; };
-		C0000000000000000000010C1 /* CeremonyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000012B1 /* CeremonyTests.swift */; };
-		C0000000000000000000011C1 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000013B1 /* HapticsService.swift */; };
-		C0000000000000000000012C1 /* SystemHapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000014B1 /* SystemHapticsService.swift */; };
-		C0000000000000000000013C1 /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000015B1 /* MainMenuView.swift */; };
-		C0000000000000000000014C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000016B1 /* SettingsView.swift */; };
-		C0000000000000000000015C1 /* ChipShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000017B1 /* ChipShopView.swift */; };
-		C0000000000000000000016C1 /* HowToPlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000018B1 /* HowToPlayView.swift */; };
-		C0000000000000000000017C1 /* MainMenuViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000019B1 /* MainMenuViewTests.swift */; };
-		C0000000000000000000018C1 /* BustFlashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001AB1 /* BustFlashView.swift */; };
-		C0000000000000000000019C1 /* BustFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001BB1 /* BustFlowTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,7 +45,19 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B0000000000000000000010B1 /* AnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000011B1 /* CeremonyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyView.swift; sourceTree = "<group>"; };
+		B0000000000000000000012B1 /* CeremonyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000013B1 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
+		B0000000000000000000014B1 /* SystemHapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemHapticsService.swift; sourceTree = "<group>"; };
+		B0000000000000000000015B1 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
+		B0000000000000000000016B1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B0000000000000000000017B1 /* ChipShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopView.swift; sourceTree = "<group>"; };
+		B0000000000000000000018B1 /* HowToPlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowToPlayView.swift; sourceTree = "<group>"; };
+		B0000000000000000000019B1 /* MainMenuViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewTests.swift; sourceTree = "<group>"; };
+		B000000000000000000001AB1 /* BustFlashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlashView.swift; sourceTree = "<group>"; };
 		B000000000000000000001B1 /* SixthSeatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SixthSeatApp.swift; sourceTree = "<group>"; };
+		B000000000000000000001BB1 /* BustFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlowTests.swift; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -60,18 +72,6 @@
 		B00000000000000000000DB1 /* GameTableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModel.swift; sourceTree = "<group>"; };
 		B00000000000000000000EB1 /* GameTableViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTableViewModelTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000FB1 /* AnimationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationModel.swift; sourceTree = "<group>"; };
-		B0000000000000000000010B1 /* AnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTests.swift; sourceTree = "<group>"; };
-		B0000000000000000000011B1 /* CeremonyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyView.swift; sourceTree = "<group>"; };
-		B0000000000000000000012B1 /* CeremonyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CeremonyTests.swift; sourceTree = "<group>"; };
-		B0000000000000000000013B1 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
-		B0000000000000000000014B1 /* SystemHapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemHapticsService.swift; sourceTree = "<group>"; };
-		B0000000000000000000015B1 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
-		B0000000000000000000016B1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		B0000000000000000000017B1 /* ChipShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopView.swift; sourceTree = "<group>"; };
-		B0000000000000000000018B1 /* HowToPlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowToPlayView.swift; sourceTree = "<group>"; };
-		B0000000000000000000019B1 /* MainMenuViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewTests.swift; sourceTree = "<group>"; };
-		B000000000000000000001AB1 /* BustFlashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlashView.swift; sourceTree = "<group>"; };
-		B000000000000000000001BB1 /* BustFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BustFlowTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -311,7 +311,7 @@
 /* Begin PBXTargetDependency section */
 		E100000000000000000002E1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = A000000000000000000002A1 /* SixthSeat */;
+			target = A000000000000000000002A1 /* SixthSeatApp */;
 			targetProxy = E100000000000000000003E1 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -442,6 +442,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YALQ7M6J96;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -480,6 +481,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YALQ7M6J96;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
