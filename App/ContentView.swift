@@ -15,6 +15,11 @@ struct ContentView: View {
 
     @State private var path: [MenuDestination] = []
     @State private var didRunSmokeTest = false
+    /// Drives the first-launch Apple 4.3 disclosure modal. Initialized on
+    /// view construction from the persisted flag so the modal renders on
+    /// the very first body pass — relying on `.onAppear` to flip a state
+    /// would leave a one-frame gap where the menu shows uncovered.
+    @State private var showDisclosure: Bool = !UserDefaults.standard.bool(forKey: PersistenceKeys.hasSeenDisclosure)
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -32,6 +37,9 @@ struct ContentView: View {
                         HowToPlayView()
                     }
                 }
+        }
+        .fullScreenCover(isPresented: $showDisclosure) {
+            DisclosureModalView(isPresented: $showDisclosure)
         }
     }
 
