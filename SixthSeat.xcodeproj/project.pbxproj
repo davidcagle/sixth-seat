@@ -20,6 +20,7 @@
 		C000000000000000000001AC1 /* DisclosureModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001CB1 /* DisclosureModalView.swift */; };
 		C000000000000000000001BC1 /* DisclosureModalViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001DB1 /* DisclosureModalViewTests.swift */; };
 		C000000000000000000001CC1 /* SettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001EB1 /* SettingsViewTests.swift */; };
+		C000000000000000000001DC1 /* HowToPlayViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001FB1 /* HowToPlayViewTests.swift */; };
 		C000000000000000000001EC1 /* GatedHapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000020B1 /* GatedHapticsService.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
@@ -65,6 +66,7 @@
 		B000000000000000000001CB1 /* DisclosureModalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclosureModalView.swift; sourceTree = "<group>"; };
 		B000000000000000000001DB1 /* DisclosureModalViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclosureModalViewTests.swift; sourceTree = "<group>"; };
 		B000000000000000000001EB1 /* SettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewTests.swift; sourceTree = "<group>"; };
+		B000000000000000000001FB1 /* HowToPlayViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HowToPlayViewTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000020B1 /* GatedHapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatedHapticsService.swift; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
@@ -144,6 +146,7 @@
 				B000000000000000000001BB1 /* BustFlowTests.swift */,
 				B000000000000000000001DB1 /* DisclosureModalViewTests.swift */,
 				B000000000000000000001EB1 /* SettingsViewTests.swift */,
+				B000000000000000000001FB1 /* HowToPlayViewTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -319,6 +322,7 @@
 				C0000000000000000000019C1 /* BustFlowTests.swift in Sources */,
 				C000000000000000000001BC1 /* DisclosureModalViewTests.swift in Sources */,
 				C000000000000000000001CC1 /* SettingsViewTests.swift in Sources */,
+				C000000000000000000001DC1 /* HowToPlayViewTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
