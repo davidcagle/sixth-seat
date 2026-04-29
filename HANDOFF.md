@@ -2,9 +2,9 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-04-28 (Session 15a)
+**Last updated:** 2026-04-28 (Session 15b)
 
-**Project completion estimate:** ~92% complete (was ~88%)
+**Project completion estimate:** ~94% complete (was ~92%)
 
 ## Project History
 
@@ -19,14 +19,17 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 | 12c | Doc cleanup: consolidate architectural decisions to `SPEC.md`, record latent-invariant audit pattern as a Workflow Lesson | 267 |
 | 12d | Affordability gates and bust threshold correctness: DEAL gated on 6× Ante (worst-case main bet), Trips force-cleared when unaffordable, bust threshold raised to `minimumPlayableBalance` (2× minimum chip = $10) | 282 |
 | 15a | Submission-ready surfaces: first-launch Apple 4.3 disclosure modal, real Settings screen (audio/haptics/legal/about), real How to Play screen with engine-sourced paytables, Chip Shop no-cash-value reinforcement | 311 |
+| 15b | Table selection UI + table-aware cycle ranges via `TableConfig` (engine), per-bet payout breakdown on hand-result UI, centralized cycle constants | 361 |
 
 (Earlier sessions 1–11 are reconstructable from `git log --oneline` on `main`.)
 
-## Current File Inventory (post-Session 15a)
+## Current File Inventory (post-Session 15b)
 
 App/Views additions and annotations:
 
-* `MainMenuView.swift` (encloses `MenuDestination` enum + `MainMenuLogic` helpers)
+* `MainMenuView.swift` (encloses `MenuDestination` enum + `MainMenuLogic` helpers; PLAY now routes to `.tableSelect` instead of straight to the game)
+* `TableSelectView.swift` (Session 15b — three-card picker reading `TableConfig.all`. `TableSelectLogic.canEnter` / `allTablesUnaffordable` / `resolveLastPlayed` are pure helpers exposed for tests. Persists `PersistenceKeys.selectedTableID` via `@AppStorage` on tap, before the navigation push)
+* `PayoutBreakdownView.swift` (Session 15b — replaces the `.handComplete` headline payout. Renders one row per placed bet with the parenthetical paytable ratio for non-1:1 wins, divider, and total. `PayoutBreakdownLogic.lines` + `PayoutLine.make` are pure builders exposed for tests. Source of truth is the engine's `HandResult`; multipliers come straight off `BetOutcome.blindBonus(multiplier:)`)
 * `SettingsView.swift` (Session 15a — Form-based screen with three sections: Audio & Haptics toggles, Legal & Disclosures with hosted GitHub Pages links, About with bundle version. `SettingsLinks` exposes the privacy/terms URLs and version-string formatter for tests)
 * `ChipShopView.swift` (Session 12b stub upgrade + Session 15a no-cash-value line; real IAP in Session 16)
 * `HowToPlayView.swift` (Session 15a — single scrollable rules reference with engine-sourced paytables. `HowToPlayCopy.blindRows` / `tripsRows` derive from `UTHRules.blindPaytable` / `tripsPaytable` so spec/UI cannot drift)
@@ -35,17 +38,20 @@ App/Views additions and annotations:
 
 App/ViewModels additions:
 
+* `GameTableViewModel.swift` (Session 15b — accepts `TableConfig` at init, default `.table10`. `anteCycle` / `tripsCycle` are computed off `tableConfig`; `stagedAnte` initializes to `tableConfig.minimumAnte`. The Trips zone affordability gate reads `tableConfig.minimumTripsStep` instead of a global `minimumChipValue`. First-bust reset uses `tableConfig.minimumAnte` instead of a hardcoded `5`)
 * `GatedHapticsService.swift` (Session 15a — wrapper over any `HapticsService` that reads `PersistenceKeys.settingsHapticsEnabled` at the call site. Default-on. Production `GameTableViewModel.init` wraps `SystemHapticsService` in this gate)
 
 Engine package additions:
 
+* `TableConfiguration.swift` (Session 15b — `TableConfig` struct: `Equatable`, `Hashable`, `Codable`, `Identifiable`, `Sendable`. Three V1 tables (`.table10` / `.table25` / `.table50`) and helpers (`minimumEntryBalance`, `minimumTripsStep`, `anteRangeDescription`, `table(forID:)`). Single source of truth for cycle data — the app reads cycles from a `TableConfig` instance, never inline literals)
 * `UserDefaultsChipStore` (real production implementation, applies starter bonus eagerly on init)
 * `PersistenceKeys.hasSeenDisclosure` (Session 15a — gates first-launch disclosure modal)
 * `PersistenceKeys.settingsSFXEnabled` / `settingsAmbientEnabled` / `settingsHapticsEnabled` (Session 15a — `@AppStorage`-backed user preferences. SFX/ambient store-only until Session 17 audio integration; haptics gates immediately via `GatedHapticsService`)
+* `PersistenceKeys.selectedTableID` (Session 15b — last-played `TableConfig.id`. Default-handling lives in `TableConfig.table(forID:)`; an unset or unknown id resolves to `TableConfig.defaultTable`)
 
 App description note:
 
-> `ContentView` is now a `NavigationStack` shell with a `GameDestinationView` wrapper that owns `GameTableViewModel` via `@State`. A `.fullScreenCover` over the menu presents `DisclosureModalView` on first launch — the cover's bound `@State` is initialized from `UserDefaults.standard.bool(forKey: PersistenceKeys.hasSeenDisclosure)` at struct init so the modal renders on the very first body pass without a one-frame uncovered menu flash.
+> `ContentView` is now a `NavigationStack` shell with a `GameDestinationView` wrapper that owns `GameTableViewModel` via `@State`. The PLAY route is now `.tableSelect → .game(tableID:)` — the destination resolves the id back to a `TableConfig` via `TableConfig.table(forID:)` and hands it to the view model. A `.fullScreenCover` over the menu presents `DisclosureModalView` on first launch — the cover's bound `@State` is initialized from `UserDefaults.standard.bool(forKey: PersistenceKeys.hasSeenDisclosure)` at struct init so the modal renders on the very first body pass without a one-frame uncovered menu flash.
 
 ## Workflow Lessons
 
@@ -53,7 +59,7 @@ App description note:
 
 ## Open Items / Housekeeping
 
-**Phone test pending across Sessions 11/14/14a/12/15a.** Items to feel for:
+**Phone test pending across Sessions 11/14/14a/12/15a/15b.** Sessions 15a and 15b ship without an intervening hardware pass — both are awaiting a single combined test run. Items to feel for:
 
 1. Tier 3 timing at 2400ms — does it breathe or did we overshoot?
 2. Royal-flush triple-tap distinctness on hardware (V1.5 fallback to `CHHapticEngine` if it reads as fuzzy buzz)
@@ -67,22 +73,18 @@ App description note:
 10. **(Session 15a) Settings haptics toggle**: turn off Haptics in Settings, return to game, confirm card flips and resolution haptics fall silent. Toggle back on, confirm they resume on the next hand.
 11. **(Session 15a) Settings legal links**: tap Privacy Policy and Terms of Service, confirm they open the hosted GitHub Pages docs in Safari without crashing.
 12. **(Session 15a) How to Play paytable readability**: scroll through the rules screen, confirm the two paytables render as actual rows (not prose) and the Vegas paytable values match the felt.
+13. **(Session 15b) Table picker layout + tap targets**: walk through PLAY → table picker → game on each of the three tables. Confirm card minimum tap target is comfortable, "Last played" pill is legible, disabled-card visual reads as "unaffordable" (not "broken").
+14. **(Session 15b) Persisted last-played table**: pick `.table25`, exit to menu, tap PLAY again — the picker should highlight the $25 card as "Last played". Force-quit and relaunch — same expectation.
+15. **(Session 15b) Payout breakdown legibility**: play hands across tier outcomes (push, blind 3:2 flush, fold, trips 6:1) and confirm each row's amount, the parenthetical ratio for non-1:1 wins, and the total all read cleanly at the felt-end-of-hand size. Watch for visual crowding when all four lines render.
+16. **(Session 15b) Table-specific cycle range entry**: at `.table25`, confirm the Ante zone tap-cycles `25 → 50 → 100 → 250 → 500 → 0`. At `.table50`, confirm Trips floor is $10 (not $5). At `.table10`, confirm $15 is now in the cycle (the gap from V1 / Session 14b feedback is closed).
 
 **Deferred (asset-blocked or later session):**
 
 * Chip balance updates immediately on bet placement, before card reveal. Surfaced in post-Session 12 phone test. Current behavior is functionally correct (chips committed to the wager) but visually thin because there is no chip-stack visual on the bet zone — chips appear to vanish from the balance with nothing on the felt to show where they went. Fix is to add chip-stack visuals on bet zones during Session 18 (Fiverr asset integration), at which point the balance number dropping becomes visually consistent with chips having physically moved onto the table. Do not stopgap before real assets land — placeholder chip visuals will feel worse than the current state.
-* **Bet zone cycle ranges deferred to Session 15b.** Current Ante cycle is $5 → $25 → $100 → $500 → $1,000 → $0 with no $10 option. Real Vegas tables expose different cycle ranges based on table minimums ($10 tables include $10/$15 bets, $25 tables minimum at $25, etc.). When Session 15b ships table selection UI, both the Ante and Trips cycles should become table-aware. The chip-set authenticity question ($10 as a real chip vs. as a stack of two $5s) also resolves in Session 15b's context. Session 15a explicitly held this back from scope to keep the submission-readiness window short.
-* **Hand-result payout display opacity (deferred to Session 15b or later).** When a hand resolves with mixed paytables (Blind 3:2, Trips 6:1, Ante and Play 1:1), the headline payout number bears no obvious relationship to the four bets placed. The math is correct (verified to the penny against Vegas paytables) but the display does not show its work. Real fix: hand-complete UI should break out the four resolutions individually before showing the total. Example layout:
-    ```
-    ANTE WIN  +$25
-    BLIND WIN +$37 (3:2)
-    PLAY WIN  +$100
-    TRIPS     +$30 (6:1)
-    ─────────────────
-    TOTAL     +$192
-    ```
-    Surfaced post-Session 12d phone test. Defer to Session 15b or later UX polish pass.
-* **Chip denomination constants partially centralized.** Session 12d introduced `GameConstants.minimumChipValue` (= 5) and `GameConstants.minimumPlayableBalance` (= 2 × minimum) in the engine package, and wired them through the bust threshold, `MainMenuLogic` thresholds, and the new affordability gates. The `anteCycle` (`[5, 25, 100, 500, 1000, 0]`) and `tripsCycle` (`[0, 5, 10, 25]`) literals in `GameTableViewModel.swift` still hard-code the raw amounts. Session 15b's table-aware cycle work is the natural place to fold those into a constants table.
+* **Mid-game table switching (out for V1).** No in-game "change table" affordance — the player must back out to the menu and re-pick. Considered out of scope for V1 because mid-game switching needs to interleave with bet/deal/resolve. Revisit if hardware feedback says the menu round-trip feels heavy.
+* **Animated payout breakdown roll-in (later polish session).** Session 15b ships the breakdown as a static render. A staggered roll-in (lines pulse / count up in sequence) would heighten the post-hand beat but isn't required to make the math legible.
+* **Table-specific visual themes (V2).** All three tables share the same green felt and accent color in V1. Different felt tones / accent colors / chip art per table is a V2 polish opportunity that depends on the Fiverr asset drop landing first.
+* **Variable starting bankroll based on table choice (V2).** Player gets the same 2,500-chip starter regardless of which table they picked first. Real-money rooms scale the buy-in to the table — V2 candidate.
 * **Mid-game Settings access (Session 15a deferred).** No gear icon on the game table in V1. Players reach Settings only via the Main Menu Back path. Acceptable for V1 because in-game Settings would need its own modal/pause flow and would interleave with the bet/deal/resolve sequence. Revisit when Session 17 audio lands and players want a quick mute during a hand.
 
 ## What's Next
@@ -96,7 +98,8 @@ App description note:
 * **Session 12c — done.** Doc cleanup. The Architectural Decisions section was removed from `HANDOFF.md` (the prior 12b entry already lives in `SPEC.md`); per project convention, durable decisions live in `SPEC.md` and `HANDOFF.md` is operational state only. The latent-invariant audit pattern (recurring across Sessions 12, 12a, 12b) was promoted to a formal Workflow Lesson in `SPEC.md`. No code or test changes; test count remains 267.
 * **Session 12d — done.** Affordability gates and bust threshold correctness. The bust trigger now fires when `chipBalance < GameConstants.minimumPlayableBalance` (= 2 × minimum chip value = $10), not just at exact zero — a player who lands at $5 after a fold can no longer be stranded. The DEAL button is gated on `chipBalance >= 6 × stagedAnte` (worst-case Ante + Blind + 4× pre-flop Play); below that the button greys out and the player cycles Ante down to find an affordable value. Trips is force-cleared and disabled when balance covers the worst-case main bet but not Trips on top, and re-enables (without auto-restoring a prior amount) when the player cycles Ante down enough. The Session 14 menu-boundary fallback uses the same threshold. New `GameConstants` enum in the engine package centralizes the minimum chip value and the playable threshold. Test count: 282 (124 engine + 158 app, +15 from Session 12c).
 * **Session 15a — done.** Submission-ready surfaces for App Store review. Adds the first-launch Apple 4.3 disclosure modal (entertainment-only language, single "I Understand" button, non-dismissible by background tap, persists `PersistenceKeys.hasSeenDisclosure`). Replaces the Settings stub with a real Form-based screen (SFX/ambient/haptics toggles; legal section with informational copy and links to the hosted privacy policy + terms of service GitHub Pages docs from Session 12-prep; About section with bundle version). Replaces the How to Play stub with a single scrollable, sectioned reference whose two paytables source rows directly from `UTHRules.blindPaytable` and `UTHRules.tripsPaytable` — engine and UI cannot drift. New `GatedHapticsService` wraps any `HapticsService` and gates immediately on `PersistenceKeys.settingsHapticsEnabled` (default-on, read at the call site). Chip Shop stub gains a no-cash-value reinforcement line above the existing copy. Test count: 311 (124 engine + 187 app, +29 from Session 12d).
-* **Next firm step: Session 15b — Table selection + table-aware cycle ranges + payout breakdown display.** Also folds the `anteCycle` / `tripsCycle` literals in `GameTableViewModel.swift` into the centralized `GameConstants` table. Real Chip Shop with StoreKit IAP ships in Session 16.
+* **Session 15b — done.** Resolves the four deferred items called out at the end of Session 15a. (1) Adds `TableConfig` to the engine — `Equatable, Hashable, Codable, Identifiable, Sendable` — with three V1 tables (`.table10` / `.table25` / `.table50`) carrying their own `anteCycle` / `tripsCycle` / `minimumAnte`. The view model layer reads cycles off a `TableConfig` instance instead of inline literals; `GameTableViewModel.init` accepts a `TableConfig` (default `.table10`) and the Trips affordability gate now reads `tableConfig.minimumTripsStep`. (2) Adds `TableSelectView` between PLAY and the game; the route becomes `MainMenu → .tableSelect → .game(tableID:)`. The screen renders three cards with affordability gating (cards disable when `chipBalance < 6 × minimumAnte`), persists the chosen id under `PersistenceKeys.selectedTableID` via `@AppStorage`, and falls back to a Chip Shop button when no table is enterable. (3) Adds `PayoutBreakdownView` at `.handComplete` — replaces the headline payout number with one row per placed bet, parenthetical paytable ratio for non-1:1 wins (3:2 for blind flush, 6:1 for trips flush, etc.), and a divider/total. Source of truth is the engine's existing `BetResolution.HandResult`; no engine changes were needed. (4) The `anteCycle` / `tripsCycle` literals in `GameTableViewModel.swift` are gone — both flow off `tableConfig` now. Test count: 361 (138 engine + 223 app, +50 from Session 15a). Per the latent-invariant Workflow Lesson, the cycle-walking and DEAL-gate boundary tests in `GameTableViewModelTests` were rewritten to track the new `.table10` defaults, and bust-flow tests now read the table minimum from `TableConfig.defaultTable.minimumAnte` rather than the old hardcoded `5`.
+* **Next firm step: hardware test pass for Sessions 15a + 15b together** (see "Phone test pending" items above). After that lands, **Session 16 — real Chip Shop with StoreKit IAP**.
 
 ## Known Gaps and Tooling Needs
 
