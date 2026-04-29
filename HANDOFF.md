@@ -2,9 +2,52 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-04-28 (Session 15c)
+**Last updated:** 2026-04-29 (SOP housekeeping)
 
 **Project completion estimate:** ~94% complete
+
+## Session Prompt Standards — Required Boilerplate
+
+Every session prompt written by Claude (in chat) for Claude Code (desktop) must include the start-of-session and end-of-session blocks below. These are non-negotiable workflow standards established across Sessions 1–15. Without them, Claude Code improvises and tells the user to run merge commands manually, which is a regression.
+
+**START-OF-SESSION** (paste verbatim into every prompt):
+
+- git checkout main
+- git pull
+- git log --oneline -5
+- Confirm <expected HEAD commit> is HEAD on main. If not, STOP and report.
+- If pbxproj is dirty (Xcode bookkeeping reorder), run `git restore SixthSeat.xcodeproj/project.pbxproj` before continuing
+- Verify working tree is clean: `git status` should show "nothing to commit, working tree clean"
+
+**END-OF-SESSION** (paste verbatim into every prompt):
+
+- Run all tests on both targets:
+  - cd to engine package, run `swift test`, confirm engine count passing
+  - Run `xcodebuild test` for the AppTests target, confirm app count passing
+  - Combined total reported
+- Build for iOS simulator, manually verify build succeeds (visual hardware verification will be done by David post-merge)
+- Commit cleanly with descriptive message
+- Manually merge to main with explicit commands (do not rely on the SessionEnd hook):
+  - `git checkout main`
+  - `git merge claude/<this-branch> --ff-only`
+  - `git worktree remove <this worktree>`
+  - `git branch -d claude/<this-branch>`
+  - Confirm `git log` shows the new commit on main
+  - Report the merge log
+- Push to GitHub:
+  - `git push`
+  - Report any errors
+- Report results, including:
+  - Final test count (combined and per-target)
+  - Confirmation of all `HANDOFF.md` / `SPEC.md` updates landed
+  - Merge log
+  - Push confirmation
+  - Anything noteworthy from `/plan`
+  - Any edge cases or latent-invariant findings
+
+**WHY THIS MATTERS**
+
+Claude Code handles its own merges. The user does not run merge commands manually. If a session prompt is missing this block, Claude Code may default to leaving the work on a worktree branch and asking the user to drive the merge — a workflow regression. Always include both blocks.
 
 ## Project History
 
