@@ -3,7 +3,12 @@ import SixthSeat
 
 /// Routes the main menu can push onto the navigation stack.
 enum MenuDestination: Hashable {
-    case game
+    /// Launch the game directly at a specific table. Carries the
+    /// `TableConfig.id` (not the config itself) so the route stays
+    /// `Hashable` and survives `NavigationPath` round-tripping. The
+    /// destination view resolves the id via `TableConfig.table(forID:)`.
+    case game(tableID: String)
+    case tableSelect
     case chipShop
     case settings
     case howToPlay
@@ -172,7 +177,10 @@ struct MainMenuView: View {
         let shouldNavigate = MainMenuLogic.handlePlayTap(store: chipStore)
         refresh()
         if shouldNavigate {
-            path.append(.game)
+            // Session 15b: PLAY routes to the table picker instead of
+            // straight to the game. The picker reads the last-played id
+            // and the affordability map, then pushes `.game(tableID:)`.
+            path.append(.tableSelect)
         }
     }
 

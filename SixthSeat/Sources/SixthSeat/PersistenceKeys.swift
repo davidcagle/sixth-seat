@@ -20,4 +20,10 @@ public enum PersistenceKeys {
     public static let settingsSFXEnabled = "com.sixthseat.uth.settings.sfxEnabled"
     public static let settingsAmbientEnabled = "com.sixthseat.uth.settings.ambientEnabled"
     public static let settingsHapticsEnabled = "com.sixthseat.uth.settings.hapticsEnabled"
+
+    /// Last-played `TableConfig.id`. Set on tap from the table-select
+    /// screen, read on next visit to render the "Last played" badge.
+    /// Default-handling lives in `TableConfig.table(forID:)` — an unset
+    /// or unknown id resolves to `TableConfig.defaultTable`. (Session 15b)
+    public static let selectedTableID = "com.sixthseat.uth.settings.selectedTableID"
 }

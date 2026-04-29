@@ -27,8 +27,14 @@ struct ContentView: View {
                 .onAppear { runSmokeTestIfRequested() }
                 .navigationDestination(for: MenuDestination.self) { destination in
                     switch destination {
-                    case .game:
-                        GameDestinationView(chipStore: chipStore, path: $path)
+                    case .game(let tableID):
+                        GameDestinationView(
+                            chipStore: chipStore,
+                            tableConfig: TableConfig.table(forID: tableID),
+                            path: $path
+                        )
+                    case .tableSelect:
+                        TableSelectView(chipStore: chipStore, path: $path)
                     case .chipShop:
                         ChipShopView()
                     case .settings:
@@ -75,8 +81,8 @@ private struct GameDestinationView: View {
     @State private var viewModel: GameTableViewModel
     @Binding var path: [MenuDestination]
 
-    init(chipStore: ChipStoreProtocol, path: Binding<[MenuDestination]>) {
-        _viewModel = State(initialValue: GameTableViewModel(chipStore: chipStore))
+    init(chipStore: ChipStoreProtocol, tableConfig: TableConfig, path: Binding<[MenuDestination]>) {
+        _viewModel = State(initialValue: GameTableViewModel(chipStore: chipStore, tableConfig: tableConfig))
         self._path = path
     }
 

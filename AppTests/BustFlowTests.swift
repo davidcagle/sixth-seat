@@ -363,7 +363,7 @@ struct BustFlowTests {
         // tapping the chip-shop button dismisses the modal and routes
         // via `path = [.chipShop]`. We exercise the closure that the
         // host installs on GameTableView.
-        var path: [MenuDestination] = [.game]
+        var path: [MenuDestination] = [.game(tableID: TableConfig.defaultTable.id)]
         let onVisitChipShop: () -> Void = { path = [.chipShop] }
 
         let store = InMemoryChipStore(
