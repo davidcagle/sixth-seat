@@ -315,21 +315,26 @@ struct GameTableView: View {
     }
 
     private var resultBar: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             if let result = viewModel.lastHandResult, !viewModel.isAnimating {
-                PayoutBreakdownView(
-                    result: result,
-                    anteBet: viewModel.anteBet,
-                    blindBet: viewModel.blindBet,
-                    playBet: viewModel.playBet,
-                    tripsBet: viewModel.tripsBet,
-                    playerFolded: viewModel.playerFolded
-                )
+                let tone = HandResultHeadline.tone(for: result.totalNet)
+                Text(HandResultHeadline.text(for: result.totalNet))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(headlineColor(for: tone))
+                    .accessibilityIdentifier("HandResultHeadline")
             }
             if viewModel.canRebet {
                 primaryButton("REBET", enabled: !viewModel.isAnimating) { viewModel.rebet() }
             }
             mutedButton("NEW HAND", enabled: !viewModel.isAnimating) { viewModel.newHand() }
+        }
+    }
+
+    private func headlineColor(for tone: HandResultHeadline.Tone) -> Color {
+        switch tone {
+        case .win:     return .green
+        case .loss:    return .red
+        case .neutral: return .white
         }
     }
 
@@ -391,6 +396,33 @@ struct GameTableView: View {
         case .straightFlush: return "Straight Flush"
         case .royalFlush:    return "Royal Flush"
         }
+    }
+}
+
+/// Pure mapping from a hand's total net to the headline shown at
+/// `.handComplete` — the signed `+$N` / `-$N` / `Push` text and the
+/// win/loss/neutral tone the view colors it with. Lifted out of the
+/// SwiftUI view so the mapping can be asserted without rendering.
+enum HandResultHeadline {
+
+    enum Tone: Equatable {
+        case win
+        case loss
+        case neutral
+    }
+
+    static func tone(for totalNet: Double) -> Tone {
+        let n = Int(totalNet.rounded())
+        if n > 0 { return .win }
+        if n < 0 { return .loss }
+        return .neutral
+    }
+
+    static func text(for totalNet: Double) -> String {
+        let n = Int(totalNet.rounded())
+        if n > 0 { return "+$\(n)" }
+        if n < 0 { return "-$\(-n)" }
+        return "Push"
     }
 }
 

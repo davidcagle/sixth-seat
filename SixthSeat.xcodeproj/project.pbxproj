@@ -26,6 +26,7 @@
 		C0000000000000000000020C1 /* TableSelectViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000022B1 /* TableSelectViewTests.swift */; };
 		C0000000000000000000021C1 /* PayoutBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000023B1 /* PayoutBreakdownView.swift */; };
 		C0000000000000000000022C1 /* PayoutBreakdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000024B1 /* PayoutBreakdownTests.swift */; };
+		C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000025B1 /* HandResultHeadlineTests.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
@@ -76,6 +77,7 @@
 		B0000000000000000000022B1 /* TableSelectViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableSelectViewTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000023B1 /* PayoutBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoutBreakdownView.swift; sourceTree = "<group>"; };
 		B0000000000000000000024B1 /* PayoutBreakdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoutBreakdownTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000025B1 /* HandResultHeadlineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandResultHeadlineTests.swift; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 				B000000000000000000001FB1 /* HowToPlayViewTests.swift */,
 				B0000000000000000000022B1 /* TableSelectViewTests.swift */,
 				B0000000000000000000024B1 /* PayoutBreakdownTests.swift */,
+				B0000000000000000000025B1 /* HandResultHeadlineTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -339,6 +342,7 @@
 				C000000000000000000001DC1 /* HowToPlayViewTests.swift in Sources */,
 				C0000000000000000000020C1 /* TableSelectViewTests.swift in Sources */,
 				C0000000000000000000022C1 /* PayoutBreakdownTests.swift in Sources */,
+				C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
