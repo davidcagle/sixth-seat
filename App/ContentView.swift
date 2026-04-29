@@ -12,6 +12,7 @@ private let smokeLog = Logger(subsystem: "com.sixthseat.uth", category: "smoke")
 struct ContentView: View {
 
     let chipStore: ChipStoreProtocol
+    let iapService: IAPService
 
     @State private var path: [MenuDestination] = []
     @State private var didRunSmokeTest = false
@@ -36,7 +37,11 @@ struct ContentView: View {
                     case .tableSelect:
                         TableSelectView(chipStore: chipStore, path: $path)
                     case .chipShop:
-                        ChipShopView()
+                        ChipShopView(viewModel: ChipShopViewModel(
+                            iapService: iapService,
+                            chipStore: chipStore,
+                            haptics: GatedHapticsService(underlying: SystemHapticsService())
+                        ))
                     case .settings:
                         SettingsView()
                     case .howToPlay:
@@ -95,5 +100,9 @@ private struct GameDestinationView: View {
 }
 
 #Preview {
-    ContentView(chipStore: InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true))
+    let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
+    return ContentView(
+        chipStore: store,
+        iapService: InMemoryIAPService(chipStore: store)
+    )
 }

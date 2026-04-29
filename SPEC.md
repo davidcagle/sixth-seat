@@ -95,11 +95,19 @@ Note: Pairs Plus payout table may vary. Verify against desired house edge before
 
 ### In-App Purchases (StoreKit 2)
 
-* Starter Stack: $1.99
-* Table Stakes: $4.99
-* High Roller: $9.99
-* Exact chip quantities per tier TBD (balance during TestFlight beta)
-* Apple takes 30% commission on all IAP
+Five consumable chip bundles. Reference USD prices below; the actual displayed price is sourced from `Product.displayPrice` at runtime via StoreKit. Chip quantities are V1-final (not TBD — balance during TestFlight may inform a V2 retune, but V1 ships these values).
+
+| Product ID | Display Name | Price (ref.) | Chips | Badge |
+|---|---|---|---|---|
+| `com.sixthseat.uth.chips.pocketchange` | Pocket Change | $0.99 | 5,000 | — |
+| `com.sixthseat.uth.chips.starter` | Starter Stack | $1.99 | 25,000 | — |
+| `com.sixthseat.uth.chips.tablestakes` | Table Stakes | $4.99 | 75,000 | Most Popular |
+| `com.sixthseat.uth.chips.highroller` | High Roller | $9.99 | 250,000 | — |
+| `com.sixthseat.uth.chips.deepstack` | Deep Stack | $19.99 | 750,000 | Best Value |
+
+**First-purchase doubler.** Until the player completes their first paid purchase on this install, every tier displays and credits 2× its base chip amount. The doubler flag (`hasMadeFirstPurchase`) is per-device-install — if the player reinstalls the app the flag resets and the doubler re-arms. Cross-device first-purchase tracking via iCloud or a backend is a V2 candidate. Restore Purchases never re-fires the doubler — the flag was already consumed when the underlying purchase originally happened.
+
+Apple takes 30% commission on all IAP.
 
 ## Visual & Audio Design
 
@@ -131,7 +139,7 @@ All visual assets from Fiverr designer are in Assets/Graphics/ All audio assets 
 1. Main Menu — Play, Settings, Chip Shop
 2. Table Select — Choose table stakes ($5, $10, $15, $25)
 3. Game Table — Primary gameplay (overhead table view, betting zones, chip tray)
-4. Chip Shop — IAP store ($1.99 / $4.99 / $9.99 packs)
+4. Chip Shop — IAP store (five tiers from $0.99 to $19.99) with first-purchase doubler banner and Restore Purchases affordance
 5. Settings — Audio toggles (SFX on/off, ambient on/off), table preferences
 
 ## Architecture Guidelines
@@ -197,7 +205,7 @@ IN:
 * Full UTH rules (Ante, Blind, Play)
 * All three side bets (Trips, Blind bonus, Pairs Plus)
 * Adjustable table stakes ($5-$25)
-* Chip shop with 3 IAP tiers
+* Chip shop with 5 IAP tiers and per-install first-purchase doubler
 * Starting bankroll + one-time bonus
 * Vegas visual style with sound effects
 * iOS + macOS universal app
@@ -249,6 +257,7 @@ OUT (V2):
 * Production `ChipStore` = `UserDefaultsChipStore` (self-applies starter bonus). Test `ChipStore` = `InMemoryChipStore` (does not, by design). The invariant "balance is non-zero on first menu render" depends on `UserDefaultsChipStore` being the production path.
 * Bust detection fires in-game at the moment chip resolution lands balance at 0, not at the menu boundary. First bust awards 2,500 second-chance chips with a brand-voiced flash modal. Second bust routes to Chip Shop via flash modal with navigation button. The `hasReceivedSecondChanceBonus` flag is set at moment of award (before modal display) to protect against force-quit replay. The Session 14 menu-boundary check remains as a fallback. (Session 12b)
 * Bust threshold and affordability gates. The bust threshold is `chipBalance < GameConstants.minimumPlayableBalance`, where `minimumPlayableBalance = 2 × minimum chip value` (currently $10 with $5 minimum chips). This represents "cannot place Ante + Blind at the smallest cycle position." The DEAL button is gated on `chipBalance >= 6 × stagedAnte` (worst-case main bet: Ante + Blind + 4× Play). Trips is optional and is force-cleared and disabled when `chipBalance < (6 × stagedAnte) + tripsAmount`. Trips re-enables when affordable but does not auto-restore previous values. (Session 12d)
+* **IAP idempotency invariant.** A given `Transaction.id` MUST NOT credit chips twice. The engine's `ChipPurchaseProcessor` enforces this with a persisted set (`PersistenceKeys.processedTransactionIDs`) consulted at the top of every credit attempt — a transaction whose id is already present is a no-op. This is the load-bearing defense against listener replay (`Transaction.updates` re-emitting after a force-quit), restore re-emission, and Family Sharing redelivery. Both the production `StoreKitIAPService` and the in-memory test double route through the same processor so the test double cannot drift. The first-purchase doubler flag (`hasMadeFirstPurchase`) is flipped to `true` *before* chips are credited — same force-quit-safety pattern as `hasReceivedSecondChanceBonus` from Session 12b. (Session 16)
 
 ## Workflow Lessons
 
@@ -260,4 +269,4 @@ OUT (V2):
 
 Mitigation: when a refactor changes data shape, state machine, or trigger ordering, explicitly audit (1) every site that iterates over affected collections, (2) every test whose setup conditions touch the changed state. Tests catch (a) when they fail visibly. Catching (b) requires reading test setups, not just running them.
 
-Pattern observed in Sessions 12, 12a, and 12b. Expected to recur in Sessions 16 (StoreKit async chip fetching) and 18 (real asset integration changing render timing).
+Pattern observed in Sessions 12, 12a, and 12b. Recurred in Session 16 (transaction listener now runs from app launch; new `hasMadeFirstPurchase` and `processedTransactionIDs` keys persist across launches; existing `ChipStoreTests`, `MainMenuViewTests`, and `BustFlowTests` had to be audited because their setup conditions touched `ChipShopView` instantiation and the in-memory store's defaults). Expected to recur again in Session 18 (real asset integration changing render timing).

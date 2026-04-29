@@ -1,0 +1,89 @@
+{
+  "identifier" : "1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "C001",
+      "localizations" : [
+        {
+          "description" : "5,000 chips for casual play.",
+          "displayName" : "Pocket Change",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sixthseat.uth.chips.pocketchange",
+      "referenceName" : "Pocket Change",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "C002",
+      "localizations" : [
+        {
+          "description" : "25,000 chips to keep playing.",
+          "displayName" : "Starter Stack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sixthseat.uth.chips.starter",
+      "referenceName" : "Starter Stack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "C003",
+      "localizations" : [
+        {
+          "description" : "75,000 chips. Most popular.",
+          "displayName" : "Table Stakes",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sixthseat.uth.chips.tablestakes",
+      "referenceName" : "Table Stakes",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "C004",
+      "localizations" : [
+        {
+          "description" : "250,000 chips for the long haul.",
+          "displayName" : "High Roller",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sixthseat.uth.chips.highroller",
+      "referenceName" : "High Roller",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : false,
+      "internalID" : "C005",
+      "localizations" : [
+        {
+          "description" : "750,000 chips. Best value.",
+          "displayName" : "Deep Stack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sixthseat.uth.chips.deepstack",
+      "referenceName" : "Deep Stack",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

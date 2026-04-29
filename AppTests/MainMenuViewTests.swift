@@ -209,7 +209,11 @@ struct MainMenuViewTests {
         let binding = Binding<[MenuDestination]>(get: { path }, set: { path = $0 })
         _ = MainMenuView(chipStore: store, path: binding)
         _ = SettingsView()
-        _ = ChipShopView()
+        _ = ChipShopView(viewModel: ChipShopViewModel(
+            iapService: InMemoryIAPService(chipStore: store),
+            chipStore: store,
+            haptics: NoopHapticsService()
+        ))
         _ = HowToPlayView()
     }
 

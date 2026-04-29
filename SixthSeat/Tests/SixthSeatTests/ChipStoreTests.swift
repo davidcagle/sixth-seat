@@ -5,13 +5,15 @@ import Testing
 @Suite("InMemoryChipStore")
 struct InMemoryChipStoreTests {
 
-    @Test("Default values are 0 balance, false bonus flags, 0 hands played")
+    @Test("Default values are 0 balance, false bonus flags, 0 hands played, doubler armed, no processed transactions")
     func defaultValues() {
         let store = InMemoryChipStore()
         #expect(store.chipBalance == 0)
         #expect(store.hasReceivedStarterBonus == false)
         #expect(store.hasReceivedSecondChanceBonus == false)
         #expect(store.totalHandsPlayed == 0)
+        #expect(store.hasMadeFirstPurchase == false)
+        #expect(store.processedTransactionIDs.isEmpty)
     }
 
     @Test("Values can be set and retrieved")
@@ -21,20 +23,26 @@ struct InMemoryChipStoreTests {
         store.hasReceivedStarterBonus = true
         store.hasReceivedSecondChanceBonus = true
         store.totalHandsPlayed = 42
+        store.hasMadeFirstPurchase = true
+        store.processedTransactionIDs = ["tx-a", "tx-b"]
 
         #expect(store.chipBalance == 1_234)
         #expect(store.hasReceivedStarterBonus == true)
         #expect(store.hasReceivedSecondChanceBonus == true)
         #expect(store.totalHandsPlayed == 42)
+        #expect(store.hasMadeFirstPurchase == true)
+        #expect(store.processedTransactionIDs == ["tx-a", "tx-b"])
     }
 
-    @Test("reset() clears every value back to its default")
+    @Test("reset() clears every value — including IAP idempotency state — back to its default")
     func resetClearsValues() {
         let store = InMemoryChipStore(
             chipBalance: 9_000,
             hasReceivedStarterBonus: true,
             hasReceivedSecondChanceBonus: true,
-            totalHandsPlayed: 7
+            totalHandsPlayed: 7,
+            hasMadeFirstPurchase: true,
+            processedTransactionIDs: ["tx-1"]
         )
 
         store.reset()
@@ -43,6 +51,8 @@ struct InMemoryChipStoreTests {
         #expect(store.hasReceivedStarterBonus == false)
         #expect(store.hasReceivedSecondChanceBonus == false)
         #expect(store.totalHandsPlayed == 0)
+        #expect(store.hasMadeFirstPurchase == false)
+        #expect(store.processedTransactionIDs.isEmpty)
     }
 }
 
@@ -96,6 +106,48 @@ struct UserDefaultsChipStoreTests {
 
         #expect(store.chipBalance == 750)
         #expect(store.hasReceivedStarterBonus == true)
+    }
+
+    @Test("hasMadeFirstPurchase round-trips through UserDefaults — fresh install reads false, then write+read true")
+    func hasMadeFirstPurchaseRoundTrip() {
+        let defaults = Self.freshDefaults()
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.hasMadeFirstPurchase == false)
+        store.hasMadeFirstPurchase = true
+        #expect(store.hasMadeFirstPurchase == true)
+        // Reading via raw UserDefaults confirms the persisted shape.
+        #expect(defaults.bool(forKey: PersistenceKeys.hasMadeFirstPurchase) == true)
+    }
+
+    @Test("processedTransactionIDs round-trips as a [String] in UserDefaults and re-reads as a Set")
+    func processedTransactionIDsRoundTrip() {
+        let defaults = Self.freshDefaults()
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.processedTransactionIDs.isEmpty)
+
+        store.processedTransactionIDs = ["tx-z", "tx-a", "tx-m"]
+        let stored = defaults.array(forKey: PersistenceKeys.processedTransactionIDs) as? [String]
+        #expect(stored == ["tx-a", "tx-m", "tx-z"]) // sorted on write for stable storage shape
+        #expect(store.processedTransactionIDs == ["tx-a", "tx-m", "tx-z"])
+    }
+
+    @Test("reset() clears the IAP idempotency keys alongside the chip-economy keys")
+    func resetClearsIAPKeys() {
+        let defaults = Self.freshDefaults()
+        let store = UserDefaultsChipStore(defaults: defaults)
+        store.hasMadeFirstPurchase = true
+        store.processedTransactionIDs = ["tx-1", "tx-2"]
+        store.chipBalance = 12_345
+
+        store.reset()
+
+        #expect(store.hasMadeFirstPurchase == false)
+        #expect(store.processedTransactionIDs.isEmpty)
+        #expect(store.chipBalance == 0)
+        #expect(defaults.object(forKey: PersistenceKeys.hasMadeFirstPurchase) == nil)
+        #expect(defaults.object(forKey: PersistenceKeys.processedTransactionIDs) == nil)
     }
 }
 

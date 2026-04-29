@@ -63,7 +63,18 @@
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test)",
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c/SixthSeat.xcodeproj\" -scheme SixthSeat -destination \"platform=iOS Simulator,name=iPhone 17,OS=latest\")",
       "Bash(git -C \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c\" add -A)",
-      "Bash(git -C \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c\" status)"
+      "Bash(git -C \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/loving-johnson-dc188c\" status)",
+      "Read(//Applications/Xcode.app/Contents/Developer/usr/bin/**)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun --find xcodebuild)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test --package-path \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/wonderful-mendeleev-3fb2fa/SixthSeat\")",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/wonderful-mendeleev-3fb2fa/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' build)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/wonderful-mendeleev-3fb2fa/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' build)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/wonderful-mendeleev-3fb2fa/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2')",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project \"/Users/davidcagle/Library/CloudStorage/GoogleDrive-david@continuumcoaching.info/My Drive/6th Seat UTH/.claude/worktrees/wonderful-mendeleev-3fb2fa/SixthSeat.xcodeproj\" -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' -quiet)",
+      "Bash(export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer)",
+      "Bash(grep -v \"passed\\\\|^--$\")",
+      "Bash(xcrun swift *)",
+      "Bash(git ls-tree *)"
     ]
   }
 }

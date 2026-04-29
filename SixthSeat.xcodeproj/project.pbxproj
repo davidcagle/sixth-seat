@@ -25,6 +25,8 @@
 		C000000000000000000001FC1 /* TableSelectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000021B1 /* TableSelectView.swift */; };
 		C0000000000000000000020C1 /* TableSelectViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000022B1 /* TableSelectViewTests.swift */; };
 		C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000025B1 /* HandResultHeadlineTests.swift */; };
+		C0000000000000000000024C1 /* ChipShopViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000026B1 /* ChipShopViewModel.swift */; };
+		C0000000000000000000025C1 /* ChipShopViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000027B1 /* ChipShopViewModelTests.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
@@ -74,6 +76,9 @@
 		B0000000000000000000021B1 /* TableSelectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableSelectView.swift; sourceTree = "<group>"; };
 		B0000000000000000000022B1 /* TableSelectViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableSelectViewTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000025B1 /* HandResultHeadlineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandResultHeadlineTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000026B1 /* ChipShopViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopViewModel.swift; sourceTree = "<group>"; };
+		B0000000000000000000027B1 /* ChipShopViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopViewModelTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000028B1 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Configuration.storekit; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -115,6 +120,7 @@
 				A000000000000000000006A1 /* App */,
 				A000000000000000000007A1 /* AppTests */,
 				B000000000000000000008B1 /* SixthSeat */,
+				B0000000000000000000028B1 /* Configuration.storekit */,
 				A000000000000000000005A1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -155,6 +161,7 @@
 				B000000000000000000001FB1 /* HowToPlayViewTests.swift */,
 				B0000000000000000000022B1 /* TableSelectViewTests.swift */,
 				B0000000000000000000025B1 /* HandResultHeadlineTests.swift */,
+				B0000000000000000000027B1 /* ChipShopViewModelTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -186,6 +193,7 @@
 				B0000000000000000000013B1 /* HapticsService.swift */,
 				B0000000000000000000014B1 /* SystemHapticsService.swift */,
 				B0000000000000000000020B1 /* GatedHapticsService.swift */,
+				B0000000000000000000026B1 /* ChipShopViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -317,6 +325,7 @@
 				C000000000000000000001AC1 /* DisclosureModalView.swift in Sources */,
 				C000000000000000000001EC1 /* GatedHapticsService.swift in Sources */,
 				C000000000000000000001FC1 /* TableSelectView.swift in Sources */,
+				C0000000000000000000024C1 /* ChipShopViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -335,6 +344,7 @@
 				C000000000000000000001DC1 /* HowToPlayViewTests.swift in Sources */,
 				C0000000000000000000020C1 /* TableSelectViewTests.swift in Sources */,
 				C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */,
+				C0000000000000000000025C1 /* ChipShopViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

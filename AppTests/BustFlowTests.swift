@@ -401,20 +401,25 @@ struct BustFlowTests {
         #expect(vm.canDeal == false)
     }
 
-    // MARK: - Stub Chip Shop view
+    // MARK: - Chip Shop view smoke
 
-    @Test("Stub ChipShopView renders title, coming-soon line, and back-navigation affordance")
+    @Test("Real ChipShopView instantiates with its injected view model (Session 16 rewrite)")
     func chipShopViewExposesRequiredAffordances() {
-        // The stub ships three accessibility identifiers — the view
-        // instantiates and the stable identifiers are ChipShop.Title,
-        // ChipShop.ComingSoon, and ChipShop.BackToMenu. Verifying the
-        // type compiles with these identifiers stable is what the
-        // SwiftUI-test layer can offer here without a UI test runner.
-        _ = ChipShopView()
-        // The test target's existing pattern (MainMenuViewTests) also
-        // smoke-tests view instantiation; this test extends that to the
-        // upgraded stub. Identifiers are referenced indirectly through
-        // the SwiftUI body when the view renders in a host app.
+        // Session 16 replaced the stub with a real screen; the view now
+        // requires a `ChipShopViewModel` and threads through the
+        // engine's IAPService. Verifying the type compiles with the
+        // expected dependencies is what the SwiftUI-test layer can
+        // offer here without a UI test runner. Stable identifiers
+        // include ChipShop.Balance, ChipShop.DoublerBanner,
+        // ChipShop.Buy.<id>, ChipShop.Restore, ChipShop.NoCashValue,
+        // and ChipShop.BackToMenu.
+        let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
+        let vm = ChipShopViewModel(
+            iapService: InMemoryIAPService(chipStore: store),
+            chipStore: store,
+            haptics: NoopHapticsService()
+        )
+        _ = ChipShopView(viewModel: vm)
         #expect(true)
     }
 
