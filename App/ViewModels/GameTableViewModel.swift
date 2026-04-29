@@ -125,18 +125,26 @@ final class GameTableViewModel {
     private var settledToken: Int = 0
     private var pendingFinalBalance: Int?
 
+    /// The table the player is seated at. Drives the Ante and Trips
+    /// cycle ranges and the minimum stake. Set at init from the
+    /// `TableSelectView` tap; never changes mid-session in V1.
+    let tableConfig: TableConfig
+
     /// Amounts the Ante zone cycles through on tap. Zero is the cleared
     /// state (cycle wraps back to the first step). Blind auto-matches Ante,
     /// so each step actually requires 2× the listed amount in chips.
-    let anteCycle: [Int] = [5, 25, 100, 500, 1000, 0]
+    /// Table-aware as of Session 15b (sourced from `tableConfig.anteCycle`).
+    var anteCycle: [Int] { tableConfig.anteCycle }
 
     /// Amounts the Trips zone cycles through on tap. Zero represents "off".
-    let tripsCycle: [Int] = [0, 5, 10, 25]
+    /// Table-aware as of Session 15b (sourced from `tableConfig.tripsCycle`).
+    var tripsCycle: [Int] { tableConfig.tripsCycle }
 
     // MARK: - Init
 
     init(
         chipStore: ChipStoreProtocol? = nil,
+        tableConfig: TableConfig = .defaultTable,
         clock: AnimationClock = RealAnimationClock(),
         haptics: HapticsService = GatedHapticsService(underlying: SystemHapticsService()),
         bypassAnimation: Bool = false
@@ -144,6 +152,7 @@ final class GameTableViewModel {
         let store = chipStore ?? InMemoryChipStore()
         self.chipStore = store
         self.game = GameState(chipStore: store)
+        self.tableConfig = tableConfig
         self.clock = clock
         self.haptics = haptics
         self.bypassAnimation = bypassAnimation
@@ -161,7 +170,7 @@ final class GameTableViewModel {
         self.lastHandResult = nil
         self.playerFolded = false
         self.errorMessage = nil
-        self.stagedAnte = 5
+        self.stagedAnte = tableConfig.minimumAnte
         self.stagedTrips = 0
     }
 
@@ -253,13 +262,13 @@ final class GameTableViewModel {
     /// Whether the Trips zone should be interactive. Locked outside
     /// `.awaitingBets`, and locked when the staged Ante doesn't leave
     /// room for any Trips step on top of the worst-case main bet.
-    /// (Session 12d affordability gate.)
+    /// (Session 12d affordability gate; Session 15b table-aware floor.)
     var isTripsZoneInteractive: Bool {
         guard phase == .awaitingBets else { return false }
-        // The smallest non-zero Trips step is the minimum chip value;
-        // if even that doesn't fit on top of the worst-case main bet,
-        // the zone is unaffordable for this Ante.
-        return chipBalance >= stagedAnte * 6 + GameConstants.minimumChipValue
+        // The smallest non-zero Trips step is the table's first non-zero
+        // tripsCycle entry; if even that doesn't fit on top of the
+        // worst-case main bet, the zone is unaffordable for this Ante.
+        return chipBalance >= stagedAnte * 6 + tableConfig.minimumTripsStep
     }
 
     /// Whether the Ante zone should be interactive. Only true while the
@@ -933,7 +942,7 @@ final class GameTableViewModel {
         bustModal = .firstBust
         dispatch(.collectAndReset)
         resetAnimationState()
-        stagedAnte = anteCycle.first ?? 5
+        stagedAnte = tableConfig.minimumAnte
         stagedTrips = 0
         displayedBalance = chipBalance
 

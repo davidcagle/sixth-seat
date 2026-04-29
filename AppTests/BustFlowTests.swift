@@ -144,7 +144,7 @@ struct BustFlowTests {
         #expect(store.hasReceivedSecondChanceBonus == true)
     }
 
-    @Test("First bust resets the table to .awaitingBets with Ante = $5 and balance 2,500")
+    @Test("First bust resets the table to .awaitingBets with Ante at the table minimum and balance 2,500")
     func firstBustPostDismissState() {
         let store = InMemoryChipStore(
             chipBalance: 20,
@@ -155,10 +155,11 @@ struct BustFlowTests {
 
         // Post-bust: even before the modal is dismissed, the table is
         // already cleared and ready for the next hand. The modal sits as
-        // an overlay over a primed betting screen.
+        // an overlay over a primed betting screen. Ante resets to the
+        // table's minimum (Session 15b — $10 on the default .table10).
         #expect(vm.phase == .awaitingBets)
         #expect(vm.chipBalance == 2_500)
-        #expect(vm.stagedAnte == 5)
+        #expect(vm.stagedAnte == TableConfig.defaultTable.minimumAnte)
         #expect(vm.stagedTrips == 0)
         #expect(vm.anteBet == 0)
         #expect(vm.blindBet == 0)
@@ -226,7 +227,7 @@ struct BustFlowTests {
         // Table state still primed for the next hand.
         #expect(vm.phase == .awaitingBets)
         #expect(vm.chipBalance == 2_500)
-        #expect(vm.stagedAnte == 5)
+        #expect(vm.stagedAnte == TableConfig.defaultTable.minimumAnte)
     }
 
     @Test("First-bust modal auto-dismisses after the 5-second window elapses on the animation clock")

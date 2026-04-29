@@ -846,8 +846,8 @@ struct AnimationTests {
         let recording = RecordingHapticsService()
         let vm = Self.makeVM(haptics: recording)
 
-        vm.cycleAnteBet() // 5 → 25
-        vm.cycleAnteBet() // 25 → 100
+        vm.cycleAnteBet() // 10 → 15 (.table10 default)
+        vm.cycleAnteBet() // 15 → 25
         #expect(recording.events == [.impact(.medium), .impact(.medium)])
     }
 
