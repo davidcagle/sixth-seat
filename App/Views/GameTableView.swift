@@ -315,12 +315,16 @@ struct GameTableView: View {
     }
 
     private var resultBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if let result = viewModel.lastHandResult, !viewModel.isAnimating {
-                let net = Int(result.totalNet.rounded())
-                Text(net > 0 ? "+$\(net)" : (net < 0 ? "-$\(-net)" : "Push"))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(net > 0 ? .green : (net < 0 ? .red : .yellow))
+                PayoutBreakdownView(
+                    result: result,
+                    anteBet: viewModel.anteBet,
+                    blindBet: viewModel.blindBet,
+                    playBet: viewModel.playBet,
+                    tripsBet: viewModel.tripsBet,
+                    playerFolded: viewModel.playerFolded
+                )
             }
             if viewModel.canRebet {
                 primaryButton("REBET", enabled: !viewModel.isAnimating) { viewModel.rebet() }
