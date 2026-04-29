@@ -23,6 +23,13 @@ struct ChipShopView: View {
                     .foregroundStyle(.white)
                     .accessibilityIdentifier("ChipShop.Title")
 
+                Text("Chips have no cash value and cannot be redeemed for money or prizes.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("ChipShop.NoCashValue")
+
                 Text("Chip bundles coming soon.")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.75))
