@@ -138,7 +138,7 @@ final class GameTableViewModel {
     init(
         chipStore: ChipStoreProtocol? = nil,
         clock: AnimationClock = RealAnimationClock(),
-        haptics: HapticsService = SystemHapticsService(),
+        haptics: HapticsService = GatedHapticsService(underlying: SystemHapticsService()),
         bypassAnimation: Bool = false
     ) {
         let store = chipStore ?? InMemoryChipStore()
