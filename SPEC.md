@@ -6,7 +6,7 @@ Durable reference: locked design decisions, paytables, animation specs, architec
 
 ## Project Overview
 
-A free-to-play casino table game app for iOS and macOS. Players sit at a virtual 6-seat Ultimate Texas Hold'em table and play against the house (dealer). No real-money gambling. No ads. Monetized through in-app chip purchases.
+A free-to-play casino table game app for iOS and macOS. Players play heads-up Ultimate Texas Hold'em against the house (dealer). One player versus the dealer; no other seats at the table. "6th Seat" is a narrative frame — the player is stepping into the sixth seat of an implied casino table. No real-money gambling. No ads. Monetized through in-app chip purchases.
 
 Full product spec: See docs/PDR.docx in Google Drive for the complete Product Design Review.
 
@@ -26,7 +26,7 @@ UTH is a casino table game where each player competes independently against the 
 ### Hand Flow
 
 1. Player places mandatory Ante and Blind bets (equal amounts)
-2. Player optionally places Trips and/or Pairs Plus side bets
+2. Player optionally places Trips side bet
 3. Dealer deals 2 hole cards to each player and 2 to the dealer (face down)
 4. Pre-flop decision: Player may bet 3x or 4x Ante (Play bet), or check
 5. Dealer reveals 3-card flop (community cards)
@@ -44,10 +44,9 @@ UTH is a casino table game where each player competes independently against the 
 
 ### Side Bets
 
-* Trips: Pays on player's best 5-card hand. Three-of-a-kind or better wins. Independent of dealer hand.
-* Blind: Mandatory bet equal to Ante. Pays bonus on straight or better. Pushes on wins below straight.
-* Pairs Plus: Pays if player's 2 hole cards form a pair or better. Independent of dealer hand and main bet outcome.
-
+* Trips: Optional side bet. Pays on player's best 5-card hand if three-of-a-kind or better. Independent of dealer hand and dealer qualification.
+* Blind: Mandatory bet equal to Ante. Pays bonus on straight or better per Blind paytable. Pushes on wins below straight. Loses with the Ante on a losing hand.
+* Pairs Plus is not offered in V1. (Removed during scope reconciliation — non-standard for UTH and adds variance without strategic depth.)
 ## Payout Tables
 
 Blind Bonus Payouts:
@@ -70,28 +69,22 @@ Trips Payouts:
 * Straight: 5:1
 * Three of a Kind: 3:1
 
-Pairs Plus Payouts:
 
-* Pocket Aces: 30:1
-* Suited Aces/Kings: 20:1
-* Suited Pair: 10:1
-* Pair: 5:1
-
-Note: Pairs Plus payout table may vary. Verify against desired house edge before finalizing.
 
 ## Table Configuration
 
-* 6 seats: 1 human player + 5 AI players
-* AI players use basic strategy (bet/fold decisions based on hand strength)
-* All players play against the same dealer hand independently
-* Table stakes adjustable: $5 / $10 / $15 / $25 minimum bet
+* **Heads-up format:** 1 human player vs. dealer. No AI players, no other seats.
+* Portrait orientation only on iPhone; equivalent layout adapted for iPad and macOS.
+* **Three stake levels in V1:** $10, $25, $50 (Ante minimums). Player chooses stake before each session via Table Select screen.
+* **Chip denominations:** $5 / $25 / $100 / $500 / $1,000 (five chips total). The $5 chip is the smallest denomination but is rarely used as the default unit at the $25 and $50 tables — primarily relevant at the $10 table and for change-making.
 
+_Rationale: Heads-up was chosen because (a) phone screen real estate is better used for a single seat, (b) UTH is mathematically a heads-up game — other players don't affect outcomes — so multi-seat is decorative only, and (c) it removes the AI player behavior workstream entirely._
 ## Chip Economy
 
 ### Free Chips
 
-* New player starting bankroll: 2,500 chips
-* One-time second chance bonus: 1,500 chips (triggered after first bankroll depleted)
+* New player starting bankroll: 5,000 chips
+* One-time second-chance bonus: 2,500 chips (triggered the first time chip resolution lands balance at 0 in-game; see Architectural Decisions for trigger semantics)
 
 ### In-App Purchases (StoreKit 2)
 
@@ -117,6 +110,7 @@ Apple takes 30% commission on all IAP.
 * Green felt table, glossy chips, professional card rendering
 * Dark warm palette: deep green felt, dark wood/leather rail, gold/brass accents
 * Premium and restrained — think Bellagio, not circus
+* Portrait orientation only. All UI is designed for portrait phone screens; landscape is not supported in V1.
 
 ### Audio
 
@@ -137,11 +131,13 @@ All visual assets from Fiverr designer are in Assets/Graphics/ All audio assets 
 ## Key Screens
 
 1. Main Menu — Play, Settings, Chip Shop
-2. Table Select — Choose table stakes ($5, $10, $15, $25)
-3. Game Table — Primary gameplay (overhead table view, betting zones, chip tray)
+2. Table Select — Choose table stake ($10, $25, $50). Three selection cards.
+3. Game Table — Primary gameplay screen (heads-up table view, betting zones, chip tray, action bar)
 4. Chip Shop — IAP store (five tiers from $0.99 to $19.99) with first-purchase doubler banner and Restore Purchases affordance
-5. Settings — Audio toggles (SFX on/off, ambient on/off), table preferences
-
+5. Settings (modal over Game Table) — Audio toggles (Music, Sound Effects, Vibrations) + Main Menu return
+6. Payout (modal over Game Table) — Reference paytable for Blind Bonus and Trips
+7. Win modal (over Game Table) — Win amount + Deal Again CTA + Main Menu secondary
+8. Bust / Second-Chance flash modal — Triggered when balance hits 0 in-game (per Session 12b architectural decision)
 ## Architecture Guidelines
 
 ### Game Engine
@@ -150,7 +146,7 @@ All visual assets from Fiverr designer are in Assets/Graphics/ All audio assets 
 * Use SystemRandomNumberGenerator for fair card distribution
 * Implement proper 5-card poker hand evaluator (must handle all UTH outcomes)
 * Dealer AI follows strict UTH house rules (no strategy, just qualification check)
-* AI player behavior: basic strategy based on hand strength, varied betting patterns for realism
+
 
 ### Key Technical Requirements
 
@@ -200,26 +196,60 @@ All visual assets from Fiverr designer are in Assets/Graphics/ All audio assets 
 
 IN:
 
-* Single-player UTH against AI dealer
-* 5 AI table players for ambiance
-* Full UTH rules (Ante, Blind, Play)
-* All three side bets (Trips, Blind bonus, Pairs Plus)
-* Adjustable table stakes ($5-$25)
+* Heads-up UTH (player vs. dealer only)
+* Full UTH rules (Ante, Blind, Play) including 3x/4x pre-flop, 2x post-flop, 1x post-river or fold
+* Trips side bet
+* Blind bonus paytable (Vegas paytable)
+* Three stake levels: $10, $25, $50 (player selects via Table Select screen)
 * Chip shop with 5 IAP tiers and per-install first-purchase doubler
-* Starting bankroll + one-time bonus
-* Vegas visual style with sound effects
+* Starting bankroll (5,000 chips) + one-time second-chance bonus (2,500 chips)
+* Bust detection with second-chance flash modal
+* Vegas visual style with sound effects (music, SFX, vibrations all toggleable)
 * iOS + macOS universal app
-* Settings screen
+* Portrait orientation only on iPhone
+* Settings modal, Payout modal, Win modal
 
-OUT (V2):
+OUT (V2 candidates):
 
+* Pairs Plus side bet (cut for V1 to keep scope tight; non-standard at most casinos)
+* Multi-seat / 6-player table (heads-up is the V1 design; multi-seat is decorative for UTH and was descoped)
+* AI table players (companion seats; not needed for heads-up)
+* Avatar system (player + dealer + 5 AI avatars; cut with multi-seat)
+* Landscape orientation
+* Additional table stakes beyond $10/$25/$50 (e.g., $5 micro stakes, $100+ high stakes)
 * Real-time multiplayer / drop-in tables
 * Player accounts / authentication
 * Backend server infrastructure
+* iCloud-synced first-purchase doubler (per-device-install only in V1)
 * Leaderboards
-* Social features (chat, friends, avatars customization)
+* Social features (chat, friends)
 * Additional game modes (tournaments, high-stakes)
 
+## Resolved Scope Drift Log
+
+Decisions made in chat that previously drifted between SPEC.md, Fiverr brief, and `userMemories`. Listed here as a permanent record so future reconciliation can verify against this list.
+
+| Date | Decision | Status |
+|---|---|---|
+| Pre-Session 1 | Heads-up format (not 6-seat) | ✅ in build, locked in Fiverr v1.1 |
+| Pre-Session 1 | Pairs Plus excluded | ✅ in build, locked in Fiverr v1.1 |
+| Pre-Session 1 | Portrait orientation only | ✅ in build, locked in Fiverr v1.1 |
+| Pre-Session 1 | Avatars excluded | ✅ in build, locked in Fiverr v1.1 |
+| Pre-Session 1 | Chip set: $5/$25/$100/$500/$1,000 | ✅ in build, locked in Fiverr v1.1 |
+| Session 14a | Starter bonus applied eagerly in `UserDefaultsChipStore.init` (5,000 chips) | ✅ in build |
+| Session 12b | Second-chance bonus = 2,500 chips on first bust | ✅ in build |
+| Session 16 | First-purchase doubler (per-install) | ✅ in build |
+| 2026-04-30 | SPEC Chip Economy section corrected (was: starter 2,500 + bonus 1,500; now: starter 5,000 + bonus 2,500) | doc fix |
+| 2026-04-30 | Three stake levels: $10/$25/$50 (no $5/$15) | ✅ in build, supersedes Fiverr v1.1 |
+| 2026-04-30 | Win modal: "Deal Again" primary CTA | UI work pending |
+| 2026-04-30 | Settings: remove Restart button | UI work pending |
+| 2026-04-30 | "DEALER" label becomes dynamic hand-strength readout | UI work pending |
+| 2026-04-30 | Pre-flop raise: 3x and 4x both available | UI work pending |
+| 2026-05-04 | Currency display: standard `$` format (e.g., `$3,935`) — supersedes earlier "no $ symbol" decision after build review confirmed `$` reads as authentic casino and Apple 4.3 compliance is satisfied via 17+ rating + Simulated Gambling descriptor + App Store description disclosure | ✅ in build |
+| 2026-05-04 | Main Menu layout: four-button vertical nav (Play / Chip Shop / Settings / How to Play) with balance display at top — no gear icon | ✅ in build |
+| 2026-05-04 | Table Select layout: vertical stacked list of three cards (not carousel), showing minimum bet + bet range per card, with "LAST PLAYED" badge | ✅ in build |
+
+**Maintenance rule:** when a product or feature decision is made (scope cut, format change, UI behavior lock, currency convention, etc.), add an entry here in the same session it's decided. Same discipline as the Architectural Decisions log above.
 ## App Store Requirements
 
 * Apple Developer Program enrollment required ($99/year)
