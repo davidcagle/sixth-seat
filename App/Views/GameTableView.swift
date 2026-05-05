@@ -138,12 +138,12 @@ struct GameTableView: View {
             HStack(spacing: 8) {
                 CardView(
                     card: viewModel.dealerHoleCards.indices.contains(0) ? viewModel.dealerHoleCards[0] : nil,
-                    faceDown: viewModel.isDealerCardFaceDown(index: 0)
+                    faceUp: !viewModel.isDealerCardFaceDown(index: 0)
                 )
                 .id("dealer-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.dealerHoleCards.indices.contains(1) ? viewModel.dealerHoleCards[1] : nil,
-                    faceDown: viewModel.isDealerCardFaceDown(index: 1)
+                    faceUp: !viewModel.isDealerCardFaceDown(index: 1)
                 )
                 .id("dealer-card-\(viewModel.currentDealId)-1")
             }
@@ -172,7 +172,7 @@ struct GameTableView: View {
     private func communitySlot(index: Int) -> some View {
         CardView(
             card: index < viewModel.communityCards.count ? viewModel.communityCards[index] : nil,
-            faceDown: viewModel.isCommunityCardFaceDown(index: index),
+            faceUp: !viewModel.isCommunityCardFaceDown(index: index),
             width: 52, height: 72
         )
         .id("community-card-\(viewModel.currentDealId)-\(index)")
@@ -223,12 +223,12 @@ struct GameTableView: View {
             HStack(spacing: 8) {
                 CardView(
                     card: viewModel.playerHoleCards.indices.contains(0) ? viewModel.playerHoleCards[0] : nil,
-                    faceDown: viewModel.isPlayerCardFaceDown(index: 0)
+                    faceUp: !viewModel.isPlayerCardFaceDown(index: 0)
                 )
                 .id("player-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.playerHoleCards.indices.contains(1) ? viewModel.playerHoleCards[1] : nil,
-                    faceDown: viewModel.isPlayerCardFaceDown(index: 1)
+                    faceUp: !viewModel.isPlayerCardFaceDown(index: 1)
                 )
                 .id("player-card-\(viewModel.currentDealId)-1")
             }

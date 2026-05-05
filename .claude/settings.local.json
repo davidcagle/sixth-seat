@@ -74,7 +74,19 @@
       "Bash(export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer)",
       "Bash(grep -v \"passed\\\\|^--$\")",
       "Bash(xcrun swift *)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(python3 -c \"import zlib, struct, json; print\\('ok'\\)\")",
+      "Bash(python3 .claude/scripts/generate_placeholder_assets.py)",
+      "Bash(xcrun --find swift-test)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -version)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project SixthSeat.xcodeproj -scheme SixthSeatApp -destination 'platform=iOS Simulator,name=iPhone 16')",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -list -project SixthSeat.xcodeproj)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 16')",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17')",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17')",
+      "Bash(mv .claude/scripts/generate_placeholder_assets.py tools/generate_placeholder_assets.py)",
+      "Bash(rmdir .claude/scripts)",
+      "Bash(git update-index *)"
     ]
   }
 }

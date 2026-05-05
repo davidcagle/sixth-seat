@@ -1,21 +1,26 @@
 import SwiftUI
 import SixthSeat
 
-/// Placeholder card renderer used until Fiverr art is delivered.
+/// Slot-based card renderer. Front and back images are loaded through
+/// `AssetService` — production resolves them from `Assets.xcassets`
+/// (`card_<suit>_<rank>.png` / `card_back.png`); tests inject an
+/// in-memory service that records the request.
 ///
 /// States:
-/// - `card == nil`: empty slot (dashed outline)
-/// - `card != nil`, `faceDown == true`: dark back with "?" symbol
-/// - `card != nil`, `faceDown == false`: white face with rank + suit
+/// - `card == nil`: empty slot (dashed outline).
+/// - `card != nil, faceUp == false`: card back image.
+/// - `card != nil, faceUp == true`: card face image.
 ///
-/// When `faceDown` toggles from `true` to `false` under an animated
-/// state change, the card performs a Y-axis 3D flip — the back of the
-/// card and the face cross-fade at the 90° midpoint of the rotation.
+/// When `faceUp` toggles from `false` to `true` under an animated
+/// state change, the card performs a Y-axis 3D flip — the back and
+/// face cross-fade at the 90° midpoint of the rotation.
 struct CardView: View {
     let card: Card?
-    var faceDown: Bool = false
+    var faceUp: Bool = true
     var width: CGFloat = 60
     var height: CGFloat = 84
+
+    @Environment(\.assets) private var assets
 
     var body: some View {
         Group {
@@ -23,21 +28,21 @@ struct CardView: View {
                 ZStack {
                     // Card back: rotated 0° when face-down, 180° when face-up
                     // (so the back rotates "out of view" as the front rotates in).
-                    faceDownBody
+                    backBody
                         .rotation3DEffect(
-                            .degrees(faceDown ? 0 : 180),
+                            .degrees(faceUp ? 180 : 0),
                             axis: (x: 0, y: 1, z: 0),
                             perspective: 0.4
                         )
-                        .opacity(faceDown ? 1 : 0)
+                        .opacity(faceUp ? 0 : 1)
 
-                    faceUpBody(card: card)
+                    faceBody(card: card)
                         .rotation3DEffect(
-                            .degrees(faceDown ? -180 : 0),
+                            .degrees(faceUp ? 0 : -180),
                             axis: (x: 0, y: 1, z: 0),
                             perspective: 0.4
                         )
-                        .opacity(faceDown ? 0 : 1)
+                        .opacity(faceUp ? 1 : 0)
                 }
             } else {
                 emptySlot
@@ -58,75 +63,33 @@ struct CardView: View {
             )
     }
 
-    private var faceDownBody: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(Color(red: 0.15, green: 0.25, blue: 0.45))
+    private var backBody: some View {
+        assets.cardBack()
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(Color.white.opacity(0.6), lineWidth: 1)
             )
-            .overlay(
-                Image(systemName: "questionmark")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
-            )
     }
 
-    @ViewBuilder
-    private func faceUpBody(card: Card) -> some View {
-        let color = suitColor(card.suit)
-        RoundedRectangle(cornerRadius: 6)
-            .fill(Color.white)
+    private func faceBody(card: Card) -> some View {
+        assets.cardImage(for: card)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(Color.black.opacity(0.3), lineWidth: 1)
             )
-            .overlay(
-                VStack {
-                    HStack {
-                        Text(card.rank.display)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(color)
-                        Spacer()
-                    }
-                    Spacer()
-                    Image(systemName: suitSymbolName(card.suit))
-                        .font(.system(size: 22))
-                        .foregroundStyle(color)
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Text(card.rank.display)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(color)
-                            .rotationEffect(.degrees(180))
-                    }
-                }
-                .padding(5)
-            )
-    }
-
-    private func suitColor(_ suit: Suit) -> Color {
-        switch suit {
-        case .hearts, .diamonds: return .red
-        case .clubs, .spades:    return .black
-        }
-    }
-
-    private func suitSymbolName(_ suit: Suit) -> String {
-        switch suit {
-        case .clubs:    return "suit.club.fill"
-        case .diamonds: return "suit.diamond.fill"
-        case .hearts:   return "suit.heart.fill"
-        case .spades:   return "suit.spade.fill"
-        }
     }
 }
 
 #Preview {
     HStack(spacing: 10) {
         CardView(card: nil)
-        CardView(card: Card(rank: .ace, suit: .spades), faceDown: true)
+        CardView(card: Card(rank: .ace, suit: .spades), faceUp: false)
         CardView(card: Card(rank: .king, suit: .hearts))
         CardView(card: Card(rank: .ten, suit: .diamonds))
     }

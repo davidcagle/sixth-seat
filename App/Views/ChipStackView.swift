@@ -1,47 +1,34 @@
 import SwiftUI
+import SixthSeat
 
-/// Placeholder chip visual: a colored disc tagged with the amount.
-/// The color roughly follows standard casino denomination conventions
-/// (red $5, green $25, black $100, purple $500, yellow $1000).
+/// Renders a stack of chips for a given denomination + chip count by
+/// picking the right Phase-1 stack variant via `StackHeight.bestFit(for:)`.
+/// Production reads `stack_<denomination>_h<height>.png` from the
+/// asset catalog; tests inject an `InMemoryAssetService` to assert
+/// the right variant was requested.
 struct ChipStackView: View {
-    let amount: Int
+    let denomination: Int
+    let count: Int
     var diameter: CGFloat = 40
 
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(chipColor(for: amount))
-            Circle()
-                .strokeBorder(Color.white, style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
-                .padding(3)
-            Text("\(amount)")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-        }
-        .frame(width: diameter, height: diameter)
-        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-    }
+    @Environment(\.assets) private var assets
 
-    private func chipColor(for amount: Int) -> Color {
-        switch amount {
-        case ..<5:     return Color(red: 0.85, green: 0.85, blue: 0.85) // white $1
-        case 5..<25:   return Color(red: 0.80, green: 0.10, blue: 0.10) // red $5
-        case 25..<100: return Color(red: 0.10, green: 0.55, blue: 0.25) // green $25
-        case 100..<500: return Color(red: 0.10, green: 0.10, blue: 0.10) // black $100
-        case 500..<1000: return Color(red: 0.45, green: 0.15, blue: 0.55) // purple $500
-        default:       return Color(red: 0.95, green: 0.75, blue: 0.20) // yellow $1000+
-        }
+    var body: some View {
+        let height = StackHeight.bestFit(for: count)
+        return assets.chipStackImage(denomination: denomination, height: height)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: diameter, height: diameter)
     }
 }
 
 #Preview {
     HStack(spacing: 10) {
-        ChipStackView(amount: 1)
-        ChipStackView(amount: 5)
-        ChipStackView(amount: 25)
-        ChipStackView(amount: 100)
-        ChipStackView(amount: 500)
-        ChipStackView(amount: 1000)
+        ChipStackView(denomination: 5, count: 1)
+        ChipStackView(denomination: 25, count: 7)
+        ChipStackView(denomination: 100, count: 15)
+        ChipStackView(denomination: 500, count: 50)
+        ChipStackView(denomination: 1000, count: 100)
     }
     .padding()
     .background(Color(red: 0.1, green: 0.4, blue: 0.2))

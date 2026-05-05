@@ -27,6 +27,9 @@
 		C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000025B1 /* HandResultHeadlineTests.swift */; };
 		C0000000000000000000024C1 /* ChipShopViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000026B1 /* ChipShopViewModel.swift */; };
 		C0000000000000000000025C1 /* ChipShopViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000027B1 /* ChipShopViewModelTests.swift */; };
+		C0000000000000000000026C1 /* AssetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000029B1 /* AssetService.swift */; };
+		C0000000000000000000027C1 /* ChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002AB1 /* ChipView.swift */; };
+		C0000000000000000000028C1 /* AssetPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002BB1 /* AssetPipelineTests.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
@@ -79,6 +82,9 @@
 		B0000000000000000000026B1 /* ChipShopViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopViewModel.swift; sourceTree = "<group>"; };
 		B0000000000000000000027B1 /* ChipShopViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipShopViewModelTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000028B1 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Configuration.storekit; sourceTree = "<group>"; };
+		B0000000000000000000029B1 /* AssetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetService.swift; sourceTree = "<group>"; };
+		B000000000000000000002AB1 /* ChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipView.swift; sourceTree = "<group>"; };
+		B000000000000000000002BB1 /* AssetPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetPipelineTests.swift; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -162,6 +168,7 @@
 				B0000000000000000000022B1 /* TableSelectViewTests.swift */,
 				B0000000000000000000025B1 /* HandResultHeadlineTests.swift */,
 				B0000000000000000000027B1 /* ChipShopViewModelTests.swift */,
+				B000000000000000000002BB1 /* AssetPipelineTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -172,6 +179,7 @@
 				B000000000000000000009B1 /* CardView.swift */,
 				B00000000000000000000AB1 /* BetZoneView.swift */,
 				B00000000000000000000BB1 /* ChipStackView.swift */,
+				B000000000000000000002AB1 /* ChipView.swift */,
 				B00000000000000000000CB1 /* GameTableView.swift */,
 				B0000000000000000000011B1 /* CeremonyView.swift */,
 				B0000000000000000000015B1 /* MainMenuView.swift */,
@@ -194,6 +202,7 @@
 				B0000000000000000000014B1 /* SystemHapticsService.swift */,
 				B0000000000000000000020B1 /* GatedHapticsService.swift */,
 				B0000000000000000000026B1 /* ChipShopViewModel.swift */,
+				B0000000000000000000029B1 /* AssetService.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -311,6 +320,7 @@
 				C000000000000000000007C1 /* CardView.swift in Sources */,
 				C000000000000000000008C1 /* BetZoneView.swift in Sources */,
 				C000000000000000000009C1 /* ChipStackView.swift in Sources */,
+				C0000000000000000000027C1 /* ChipView.swift in Sources */,
 				C00000000000000000000AC1 /* GameTableView.swift in Sources */,
 				C00000000000000000000BC1 /* GameTableViewModel.swift in Sources */,
 				C00000000000000000000DC1 /* AnimationModel.swift in Sources */,
@@ -326,6 +336,7 @@
 				C000000000000000000001EC1 /* GatedHapticsService.swift in Sources */,
 				C000000000000000000001FC1 /* TableSelectView.swift in Sources */,
 				C0000000000000000000024C1 /* ChipShopViewModel.swift in Sources */,
+				C0000000000000000000026C1 /* AssetService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,6 +356,7 @@
 				C0000000000000000000020C1 /* TableSelectViewTests.swift in Sources */,
 				C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */,
 				C0000000000000000000025C1 /* ChipShopViewModelTests.swift in Sources */,
+				C0000000000000000000028C1 /* AssetPipelineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
