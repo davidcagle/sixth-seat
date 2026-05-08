@@ -15,10 +15,16 @@ public enum GameConstants {
     /// shape stays consistent.)
     public static let minimumChipValue = 5
 
-    /// The smallest chip balance at which a player can place the
-    /// minimum mandatory wagers (Ante + Blind). Below this, the player
-    /// is functionally bust — no Ante step is affordable, so no hand
-    /// can start. Used by the bust modal trigger and the menu-boundary
-    /// fallback. (Session 12d)
-    public static let minimumPlayableBalance = minimumChipValue * 2
+    /// The smallest chip balance at which the player can DEAL at *some*
+    /// table — i.e. the cheapest table's `minimumEntryBalance`. Below
+    /// this, no V1 table is enterable and the player is functionally
+    /// bust. Drives the in-game bust trigger and the menu-boundary
+    /// second-chance fallback. Single source of truth so the trigger
+    /// cannot drift when stake levels change. (Session 18b — was a
+    /// fixed `2 × minimumChipValue` per Session 12d, which silently
+    /// stranded balances in the gap between $10 and the cheapest table
+    /// entry once Session 15b introduced higher-stake tables.)
+    public static var minimumPlayableBalance: Int {
+        TableConfig.cheapestEntryBalance
+    }
 }

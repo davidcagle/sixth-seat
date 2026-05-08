@@ -38,7 +38,8 @@ struct BustFlowTests {
     @Test("Bust modal fires when the hand resolves below the playable threshold")
     func bustFiresBelowPlayableThreshold() {
         // Start at 25 with Ante=10 → fold drops the player to 5, which
-        // is below `minimumPlayableBalance` (10). The first-bust modal
+        // is below `minimumPlayableBalance` (post-Session 18b: $60, the
+        // cheapest table's `minimumEntryBalance`). The first-bust modal
         // and rescue bonus must fire even though the balance is non-zero.
         let store = InMemoryChipStore(
             chipBalance: 25,
@@ -56,12 +57,13 @@ struct BustFlowTests {
 
     @Test("Bust modal does NOT fire when the hand resolves at exactly the playable threshold")
     func bustDoesNotFireAtThreshold() {
-        // Start at 30 with Ante=10 → fold drops the player to 10, which
-        // is exactly `minimumPlayableBalance`. The player can still
-        // place Ante + Blind at the smallest cycle step, so the bust
-        // modal does not fire.
+        // Start at 80 with Ante=10 → fold drops the player to 60, which
+        // is exactly `minimumPlayableBalance` (the cheapest table's
+        // `minimumEntryBalance` post-Session 18b). The player can still
+        // re-enter the $10 table at this balance, so the bust modal
+        // does not fire.
         let store = InMemoryChipStore(
-            chipBalance: 30,
+            chipBalance: 80,
             hasReceivedStarterBonus: true,
             hasReceivedSecondChanceBonus: false
         )

@@ -239,6 +239,24 @@ struct SecondChanceBonusTests {
         #expect(store.chipBalance == 0)
         #expect(store.hasReceivedSecondChanceBonus == true)
     }
+
+    @Test("Second-chance bonus fires when balance is stranded between zero and the cheapest table's minimum entry — Session 18b regression guard")
+    func secondChanceBonusFiresWhenStrandedBetweenStakeMinimums() {
+        // Session 18a phone-test pass surfaced this gap: at $30 the
+        // player was above the old global threshold (Session 12d's $10)
+        // but below every V1 table's `minimumEntryBalance` (cheapest is
+        // $60 at .table10) — so no table was enterable AND the bust
+        // trigger never fired. The threshold must track the cheapest
+        // table's entry, not a fixed chip-floor multiple. If a future
+        // session changes stake levels again, this test is the guard
+        // that the threshold keeps pace.
+        let store = InMemoryChipStore(chipBalance: 30)
+        let applied = BonusLogic.applySecondChanceBonusIfEligible(store: store)
+
+        #expect(applied == true)
+        #expect(store.chipBalance == 30 + BonusLogic.secondChanceBonusAmount)
+        #expect(store.hasReceivedSecondChanceBonus == true)
+    }
 }
 
 @Suite("GameConstants (Session 12d)")
@@ -249,12 +267,16 @@ struct GameConstantsTests {
         #expect(GameConstants.minimumChipValue == 5)
     }
 
-    @Test("minimumPlayableBalance derives as 2× the minimum chip value")
-    func minimumPlayableBalanceDerivesFromChipValue() {
-        // The threshold represents Ante + Blind at the smallest cycle
-        // step, so it must always equal 2× the chip floor — never a
-        // hard-coded magic number.
-        #expect(GameConstants.minimumPlayableBalance == GameConstants.minimumChipValue * 2)
-        #expect(GameConstants.minimumPlayableBalance == 10)
+    @Test("minimumPlayableBalance equals the cheapest table's minimum entry — Session 18b table-aware threshold")
+    func minimumPlayableBalanceTracksCheapestTableEntry() {
+        // The threshold is "smallest balance at which *some* table is
+        // still enterable" — i.e. the cheapest table's worst-case 6×
+        // Ante main bet. Pre-Session 18b this was a fixed 2× chip
+        // floor ($10), which silently stranded balances in the gap
+        // between $10 and the cheapest entry once Session 15b raised
+        // stake levels. The threshold must derive from `TableConfig`
+        // so any future stake-level change carries the trigger with it.
+        #expect(GameConstants.minimumPlayableBalance == TableConfig.cheapestEntryBalance)
+        #expect(GameConstants.minimumPlayableBalance == 60)
     }
 }

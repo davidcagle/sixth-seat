@@ -90,6 +90,17 @@ public extension TableConfig {
         minimumAnte * 6
     }
 
+    /// Smallest `minimumEntryBalance` across every V1 table — i.e. the
+    /// chip floor at which *some* table is still enterable. Below this
+    /// the player is functionally bust regardless of which table they
+    /// might pick. Drives the in-game bust trigger and the menu-
+    /// boundary second-chance fallback so neither can drift behind a
+    /// stake-level change. (Session 18b — closes the stranded-balance
+    /// gap introduced in Session 15b when stake levels expanded.)
+    static var cheapestEntryBalance: Int {
+        all.map(\.minimumEntryBalance).min() ?? 0
+    }
+
     /// Bet range the table picker shows on each card —
     /// "$10 – $100" form, smallest non-zero Ante step to largest.
     var anteRangeDescription: String {

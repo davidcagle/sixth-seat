@@ -910,8 +910,8 @@ final class GameTableViewModel {
 
     /// Detects an in-game bust at the moment chip resolution lands the
     /// balance below `GameConstants.minimumPlayableBalance` — the
-    /// smallest balance that can still afford the minimum Ante + Blind
-    /// cycle position — and presents the appropriate flash modal:
+    /// cheapest table's `minimumEntryBalance`, i.e. no V1 table is
+    /// enterable — and presents the appropriate flash modal:
     /// first-bust awards the second-chance bonus and resets the table to
     /// `.awaitingBets`; second-bust offers a route to the Chip Shop. The
     /// `hasReceivedSecondChanceBonus` flag is set at the moment the bonus
