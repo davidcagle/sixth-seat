@@ -248,6 +248,8 @@ Decisions made in chat that previously drifted between SPEC.md, Fiverr brief, an
 | 2026-05-04 | Currency display: standard `$` format (e.g., `$3,935`) — supersedes earlier "no $ symbol" decision after build review confirmed `$` reads as authentic casino and Apple 4.3 compliance is satisfied via 17+ rating + Simulated Gambling descriptor + App Store description disclosure | ✅ in build |
 | 2026-05-04 | Main Menu layout: four-button vertical nav (Play / Chip Shop / Settings / How to Play) with balance display at top — no gear icon | ✅ in build |
 | 2026-05-04 | Table Select layout: vertical stacked list of three cards (not carousel), showing minimum bet + bet range per card, with "LAST PLAYED" badge | ✅ in build |
+| 2026-05-07 | Bust threshold made table-aware (`GameConstants.minimumPlayableBalance` now derives from `TableConfig.cheapestEntryBalance`, was a fixed `2 × minimumChipValue = $10` per Session 12d). Regression introduced in Session 15b when stake levels expanded to $25/$50 without raising the threshold; stranded any balance in $10–$60 (no table enterable AND bust trigger never fired). Caught in Session 18a phone-test pass | ✅ in build |
+| 2026-05-07 | Table picker `$50` card range string formats `$50 – $1,000` (was `$50 – $1000`); `TableConfig.anteRangeDescription` now routes through `ChipShopLogic.formatChipAmount` to match the 2026-05-04 currency convention | ✅ in build |
 
 **Maintenance rule:** when a product or feature decision is made (scope cut, format change, UI behavior lock, currency convention, etc.), add an entry here in the same session it's decided. Same discipline as the Architectural Decisions log above.
 ## App Store Requirements
