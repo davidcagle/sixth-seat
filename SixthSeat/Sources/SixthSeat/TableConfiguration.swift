@@ -103,9 +103,13 @@ public extension TableConfig {
 
     /// Bet range the table picker shows on each card —
     /// "$10 – $100" form, smallest non-zero Ante step to largest.
+    /// Routes through a thousands-separating formatter so the $50 card
+    /// renders "$50 – $1,000", not "$50 – $1000". (Session 18b — was
+    /// raw integer interpolation, drifted from the 2026-05-04 currency
+    /// convention.)
     var anteRangeDescription: String {
         let nonZero = anteCycle.filter { $0 > 0 }
         guard let lo = nonZero.min(), let hi = nonZero.max() else { return "" }
-        return "$\(lo) – $\(hi)"
+        return "$\(ChipShopLogic.formatChipAmount(lo)) – $\(ChipShopLogic.formatChipAmount(hi))"
     }
 }

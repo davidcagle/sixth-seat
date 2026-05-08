@@ -97,11 +97,13 @@ struct TableConfigurationTests {
         #expect(TableConfig.table50.minimumEntryBalance == 300)
     }
 
-    @Test("anteRangeDescription spans smallest non-zero to largest non-zero step")
+    @Test("anteRangeDescription spans smallest non-zero to largest non-zero step with thousands separators")
     func anteRangeDescriptionIsCorrect() {
         #expect(TableConfig.table10.anteRangeDescription == "$10 – $100")
         #expect(TableConfig.table25.anteRangeDescription == "$25 – $500")
-        #expect(TableConfig.table50.anteRangeDescription == "$50 – $1000")
+        // Session 18b: $50 card now renders "$1,000" not "$1000" — matches
+        // the 2026-05-04 currency convention used in-game and on the menu.
+        #expect(TableConfig.table50.anteRangeDescription == "$50 – $1,000")
     }
 
     @Test("minimumTripsStep is the smallest non-zero entry in tripsCycle")
