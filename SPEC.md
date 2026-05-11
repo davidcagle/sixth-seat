@@ -134,7 +134,7 @@ All visual assets from Fiverr designer are in Assets/Graphics/ All audio assets 
 2. Table Select — Choose table stake ($10, $25, $50). Three selection cards.
 3. Game Table — Primary gameplay screen (heads-up table view, betting zones, chip tray, action bar)
 4. Chip Shop — IAP store (five tiers from $0.99 to $19.99) with first-purchase doubler banner and Restore Purchases affordance
-5. Settings (modal over Game Table) — Audio toggles (Music, Sound Effects, Vibrations) + Main Menu return
+5. Settings (modal over Game Table) — Sound Effects + Vibrations toggles" (Music removed for V1)
 6. Payout (modal over Game Table) — Reference paytable for Blind Bonus and Trips
 7. Win modal (over Game Table) — Win amount + Deal Again CTA + Main Menu secondary
 8. Bust / Second-Chance flash modal — Triggered when balance hits 0 in-game (per Session 12b architectural decision)
@@ -204,7 +204,7 @@ IN:
 * Chip shop with 5 IAP tiers and per-install first-purchase doubler
 * Starting bankroll (5,000 chips) + one-time second-chance bonus (2,500 chips)
 * Bust detection with second-chance flash modal
-* Vegas visual style with sound effects (music, SFX, vibrations all toggleable)
+* Vegas visual style with sound effects (SFX, vibrations all toggleable)
 * iOS + macOS universal app
 * Portrait orientation only on iPhone
 * Settings modal, Payout modal, Win modal
@@ -305,3 +305,5 @@ Decisions made in chat that previously drifted between SPEC.md, Fiverr brief, an
 Mitigation: when a refactor changes data shape, state machine, or trigger ordering, explicitly audit (1) every site that iterates over affected collections, (2) every test whose setup conditions touch the changed state. Tests catch (a) when they fail visibly. Catching (b) requires reading test setups, not just running them.
 
 Pattern observed in Sessions 12, 12a, and 12b. Recurred in Session 16 (transaction listener now runs from app launch; new `hasMadeFirstPurchase` and `processedTransactionIDs` keys persist across launches; existing `ChipStoreTests`, `MainMenuViewTests`, and `BustFlowTests` had to be audited because their setup conditions touched `ChipShopView` instantiation and the in-memory store's defaults). Expected to recur again in Session 18 (real asset integration changing render timing).
+
+| 2026-05-11 | Music toggle removed from V1 Settings (no music asset sourced for V1; toggle would be non-functional). SFX + Vibrations only. Music returns as V2 candidate. | ✅ in build [Session 19a] |
