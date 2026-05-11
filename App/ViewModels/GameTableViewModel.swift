@@ -590,6 +590,18 @@ final class GameTableViewModel {
         // On a fold, dealer cards stay face-down — Vegas tables don't expose
         // them and the player has surrendered the hand.
         if phase == .handComplete && !playerFolded {
+            // If we're revealing dealer cards here (skip-to-settled mid-
+            // dealer-reveal, or bypassAnimation in tests), fire the
+            // `.cardFlip` SFX exactly once. The normal-path animation
+            // already played it inside `animateDealerHoleCards`, so check
+            // for un-revealed dealer cards before firing — same-SFX double-
+            // play is what surfaced the Session 19a phone-test silence in
+            // the first place (`AVAudioPlayer.currentTime = 0; play()` on
+            // a mid-playback cached player). (Session 19b)
+            let dealerCardsHidden = dealerHoleCards.contains { !revealedCards.contains($0) }
+            if dealerCardsHidden {
+                audio.play(.cardFlip)
+            }
             for card in dealerHoleCards { revealedCards.insert(card) }
         }
         playerCardsAwaitingFlip = false
@@ -649,7 +661,10 @@ final class GameTableViewModel {
     ///
     /// `sfx` defaults to `nil` so callers must opt in explicitly. The
     /// trigger map (Session 19a): player hole-card flip → `.cardDeal`,
-    /// community card → `.cardPlace`, dealer reveal → `.cardFlip`.
+    /// community card → `.cardPlace`. Dealer reveal fires `.cardFlip`
+    /// once at the top of `animateDealerHoleCards` rather than per card
+    /// (Session 19b — see that method's docstring for the rationale),
+    /// so the per-dealer-card reveals pass `sfx: nil` here.
     private func revealWithHaptic(_ card: Card, sfx: SoundEffect? = nil) {
         revealedCards.insert(card)
         haptics.impact(.light)
@@ -756,9 +771,23 @@ final class GameTableViewModel {
     }
 
     /// Dealer reveal: card 1 at 0ms (250ms), card 2 at 200ms (250ms).
+    ///
+    /// Audio: fires `.cardFlip` exactly once, synchronously, before the
+    /// first `Task.yield()`. Session 19a originally fired it per card,
+    /// but `AVAudioPlayer.currentTime = 0; play()` on the shared cached
+    /// player re-triggers the same instance — the 200ms gap between the
+    /// two dealer cards is shorter than the ~0.9s `card_flip.caf`, so the
+    /// second `play()` restarted the first mid-playback and on iPhone 16
+    /// Pro Max produced a silent showdown (Session 19a phone test). Firing
+    /// once at the top also lands the SFX before any `await`, which means
+    /// a tap-to-skip during dealer reveal still produces the audio cue.
     private func animateDealerHoleCards(token: Int) async {
         guard isCurrent(token), dealerHoleCards.count >= 2 else { return }
         animationStage = .revealingDealer
+
+        // Single dealer-reveal audio beat — synchronous, before any await,
+        // so a same-frame skip-to-settled still hears it. See docstring.
+        audio.play(.cardFlip)
 
         // See animateFlop — yield to flush the post-dispatch face-down
         // render before the first reveal lands. Pairs with the
@@ -769,10 +798,10 @@ final class GameTableViewModel {
         await Task.yield()
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(dealerHoleCards[0], sfx: .cardFlip)
+        revealWithHaptic(dealerHoleCards[0])
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
-        revealWithHaptic(dealerHoleCards[1], sfx: .cardFlip)
+        revealWithHaptic(dealerHoleCards[1])
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 

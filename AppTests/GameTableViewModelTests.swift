@@ -941,7 +941,7 @@ struct GameTableViewModelAudioTests {
     }
 
     #if DEBUG
-    @Test("Showdown fires cardFlip × 2 for the dealer reveal and chipPayoff + winBig for a flush")
+    @Test("Showdown fires cardFlip × 1 for the dealer reveal and chipPayoff + winBig for a flush")
     func showdownFiresDealerFlipAndWinSFX() async {
         // DebugScenario.playerFlushOnRiver: player makes a hearts flush,
         // dealer holds pair of queens (qualifies). Player wins on a
@@ -964,14 +964,94 @@ struct GameTableViewModelAudioTests {
 
         #expect(vm.phase == .handComplete)
         #expect(vm.lastHandResult?.playerHand.rank == .flush)
-        // Two cardFlip plays for the dealer reveal.
+        // Session 19b: cardFlip fires once at the start of the dealer
+        // reveal, not per card. Per-card restart on the cached
+        // AVAudioPlayer clipped the first instance on iPhone 16 Pro Max,
+        // producing a silent showdown.
         let cardFlipCount = audio.playLog.filter { $0 == .cardFlip }.count
-        #expect(cardFlipCount == 2)
+        #expect(cardFlipCount == 1)
         // Win-side SFX: winBig (flush threshold) + chipPayoff.
         #expect(audio.playLog.contains(.winBig))
         #expect(audio.playLog.contains(.chipPayoff))
         #expect(audio.playLog.contains(.winSmall) == false)
         #expect(audio.playLog.contains(.loss) == false)
+    }
+    #endif
+
+    #if DEBUG
+    @Test("Dealer cardFlip SFX fires via the bulk-reveal fallback when the dealer-reveal animation is bypassed (Session 19b)")
+    func dealerCardFlipFiresWhenAnimationIsBypassed() {
+        // Regression test for the Session 19a phone-test finding: dealer
+        // hole cards were silent at showdown reveal. The Session 19b fix
+        // has two layers: (1) fire `.cardFlip` once at the top of
+        // `animateDealerHoleCards` (no per-card restart-clipping on the
+        // cached `AVAudioPlayer`); (2) fire `.cardFlip` once inside
+        // `finalizeSettledState` when dealer cards are being revealed
+        // for the first time — covers the skip-to-settled-mid-dealer-
+        // reveal path and the `bypassAnimation` test path.
+        //
+        // This test specifically exercises layer (2): under
+        // `bypassAnimation = true`, the runAnimation body never runs, so
+        // pre-fix the dealer reveal completed silently. Post-fix the
+        // finalize-time fallback fires `.cardFlip` exactly once.
+        let audio = InMemoryAudioService()
+        let store = InMemoryChipStore(chipBalance: 10_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(
+            chipStore: store,
+            haptics: NoopHapticsService(),
+            audio: audio,
+            bypassAnimation: true
+        )
+        vm.stagedAnte = 10
+        DebugDealForcer.pendingScenario = .playerFlushOnRiver
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+
+        audio.reset()
+
+        vm.betPostRiver()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playerFolded == false)
+        // Pre-fix: the bypassed animation skipped audio entirely on the
+        // dealer-reveal beat. Post-fix: finalize-time fallback lands the
+        // SFX (exactly once — not per card).
+        let cardFlipCount = audio.playLog.filter { $0 == .cardFlip }.count
+        #expect(cardFlipCount == 1)
+    }
+    #endif
+
+    #if DEBUG
+    @Test("Dealer cardFlip SFX does not double-fire when the animation runs to completion (Session 19b)")
+    func dealerCardFlipDoesNotDoubleFireOnNormalPath() async {
+        // Companion to the bypass-fallback test above: on the normal
+        // animation path, `animateDealerHoleCards` fires `.cardFlip` and
+        // marks the dealer cards as revealed. By the time
+        // `finalizeSettledState` runs, the cards are already in
+        // `revealedCards`, so the fallback must NOT fire a second
+        // `.cardFlip`. Same-SFX double-play on a shared cached
+        // AVAudioPlayer is the original Session 19a phone-test failure
+        // mode — this test pins that the cure isn't a fresh disease.
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        DebugDealForcer.pendingScenario = .playerFlushOnRiver
+        vm.deal()
+        await Self.drain()
+        vm.checkPreFlop()
+        await Self.drain()
+        vm.checkPostFlop()
+        await Self.drain()
+
+        audio.reset()
+
+        vm.betPostRiver()
+        await Self.drain()
+
+        let cardFlipCount = audio.playLog.filter { $0 == .cardFlip }.count
+        #expect(cardFlipCount == 1)
     }
     #endif
 
