@@ -5,7 +5,7 @@ import SwiftUI
 @testable import SixthSeatApp
 
 @MainActor
-@Suite("SettingsView (Session 15a)")
+@Suite("SettingsView (Session 15a, updated 19a)")
 struct SettingsViewTests {
 
     private static func freshDefaults(
@@ -28,9 +28,10 @@ struct SettingsViewTests {
     @Test("Settings persistence keys are namespaced under com.sixthseat.uth.settings")
     func settingsKeysAreNamespaced() {
         // Lock the wire format. Renaming a key would silently reset
-        // every existing user's preference back to default.
+        // every existing user's preference back to default. The
+        // Session 19a Music removal dropped `settingsAmbientEnabled`
+        // along with the toggle — only SFX and Haptics remain.
         #expect(PersistenceKeys.settingsSFXEnabled == "com.sixthseat.uth.settings.sfxEnabled")
-        #expect(PersistenceKeys.settingsAmbientEnabled == "com.sixthseat.uth.settings.ambientEnabled")
         #expect(PersistenceKeys.settingsHapticsEnabled == "com.sixthseat.uth.settings.hapticsEnabled")
     }
 
@@ -69,11 +70,9 @@ struct SettingsViewTests {
         // `@AppStorage(... default: true)` papers over the asymmetry; at
         // the persistence layer we simply round-trip the value.
         defaults.set(false, forKey: PersistenceKeys.settingsSFXEnabled)
-        defaults.set(false, forKey: PersistenceKeys.settingsAmbientEnabled)
         defaults.set(false, forKey: PersistenceKeys.settingsHapticsEnabled)
 
         #expect(defaults.bool(forKey: PersistenceKeys.settingsSFXEnabled) == false)
-        #expect(defaults.bool(forKey: PersistenceKeys.settingsAmbientEnabled) == false)
         #expect(defaults.bool(forKey: PersistenceKeys.settingsHapticsEnabled) == false)
     }
 

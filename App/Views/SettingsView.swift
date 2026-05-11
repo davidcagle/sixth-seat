@@ -3,9 +3,13 @@ import SixthSeat
 
 /// V1 Settings screen. Three sections:
 ///
-/// 1. Audio & Haptics — toggles for SFX, ambient audio, and haptics. SFX
-///    and ambient store the flag only (audio integration lands in Session
-///    17). Haptics is gated immediately via `GatedHapticsService`.
+/// 1. Audio & Haptics — toggles for SFX and haptics. SFX gates the
+///    `AVAudioService` at the call site via
+///    `PersistenceKeys.settingsSFXEnabled` (Session 19a); haptics
+///    gates via `GatedHapticsService` (Session 15a). The Music
+///    toggle was removed in Session 19a — no music asset was
+///    sourced for V1, so a third audio toggle would be
+///    non-functional.
 /// 2. Legal & Disclosures — Apple 4.3 informational copy plus links to
 ///    the hosted privacy policy and terms of service.
 /// 3. About — app version and build number from the bundle.
@@ -14,7 +18,6 @@ import SixthSeat
 struct SettingsView: View {
 
     @AppStorage(PersistenceKeys.settingsSFXEnabled) private var sfxEnabled: Bool = true
-    @AppStorage(PersistenceKeys.settingsAmbientEnabled) private var ambientEnabled: Bool = true
     @AppStorage(PersistenceKeys.settingsHapticsEnabled) private var hapticsEnabled: Bool = true
 
     var body: some View {
@@ -22,8 +25,6 @@ struct SettingsView: View {
             Section("Audio & Haptics") {
                 Toggle("Sound Effects", isOn: $sfxEnabled)
                     .accessibilityIdentifier("Settings.SFXToggle")
-                Toggle("Ambient Audio", isOn: $ambientEnabled)
-                    .accessibilityIdentifier("Settings.AmbientToggle")
                 Toggle("Haptics", isOn: $hapticsEnabled)
                     .accessibilityIdentifier("Settings.HapticsToggle")
             }
