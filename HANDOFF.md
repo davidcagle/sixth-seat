@@ -27,6 +27,10 @@ Every session prompt written by Claude (in chat) for Claude Code (desktop) must 
   - Combined total reported
 - Build for iOS simulator, manually verify build succeeds (visual hardware verification will be done by David post-merge)
 - Commit cleanly with descriptive message
+- **Archive the session transcript BEFORE removing the worktree.** Claude Code's session storage is keyed by working-directory path. When the worktree directory is removed, Claude Code housekeeping empties the matching `~/.claude/projects/-Users-...-<worktree-name>/` directory, which deletes the `.jsonl` transcript of the entire session. Cost of skipping this step is losing the chat record of what was built and why — the code survives on `main`, but the conversational context (prompts, tool calls, intermediate decisions) is gone. To preserve:
+  - Find the matching project directory: `ls ~/.claude/projects/ | grep <worktree-name>`
+  - Copy any `.jsonl` files inside it to a safe location: `cp ~/.claude/projects/-Users-...-<worktree-name>/*.jsonl ~/claude-transcripts/session-<NN>.jsonl` (or any path outside `~/.claude/projects/`)
+  - Then proceed with the merge + worktree removal below
 - Manually merge to main with explicit commands (do not rely on the SessionEnd hook):
   - `git checkout main`
   - `git merge claude/<this-branch> --ff-only`
@@ -48,6 +52,8 @@ Every session prompt written by Claude (in chat) for Claude Code (desktop) must 
 **WHY THIS MATTERS**
 
 Claude Code handles its own merges. The user does not run merge commands manually. If a session prompt is missing this block, Claude Code may default to leaving the work on a worktree branch and asking the user to drive the merge — a workflow regression. Always include both blocks.
+
+**Transcript preservation is non-obvious and irreversible.** The transcript-archive step above was added after Session 19a's chat record was lost to worktree removal. Claude Code's `~/.claude/projects/` storage is keyed by directory path, not by branch or session ID, so the moment the worktree path stops existing, the transcript at the matching project directory is housekept away. There is no undo. If a session involved meaningful design decisions worked out in chat (not just in code), archive the `.jsonl` before `git worktree remove` runs.
 
 ## Project History
 
