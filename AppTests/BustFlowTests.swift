@@ -242,7 +242,11 @@ struct BustFlowTests {
         // Use a ManualAnimationClock so we can verify the 5,000ms sleep
         // is queued and that resolving it clears the modal.
         let clock = ManualAnimationClock()
-        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        let vm = GameTableViewModel(
+            chipStore: store,
+            clock: clock,
+            audio: InMemoryAudioService()
+        )
         vm.stagedAnte = 10
         vm.deal()
         await Self.drainAnimations()

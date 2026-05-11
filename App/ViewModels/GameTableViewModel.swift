@@ -110,6 +110,7 @@ final class GameTableViewModel {
     private let chipStore: ChipStoreProtocol
     private let clock: AnimationClock
     private let haptics: HapticsService
+    private let audio: AudioService
     /// When true, every choreography call settles synchronously on the
     /// dispatching frame — used by engine-only unit tests that don't
     /// want to drive the animation Task.
@@ -147,6 +148,7 @@ final class GameTableViewModel {
         tableConfig: TableConfig = .defaultTable,
         clock: AnimationClock = RealAnimationClock(),
         haptics: HapticsService = GatedHapticsService(underlying: SystemHapticsService()),
+        audio: AudioService = AVAudioService(),
         bypassAnimation: Bool = false
     ) {
         let store = chipStore ?? InMemoryChipStore()
@@ -155,6 +157,7 @@ final class GameTableViewModel {
         self.tableConfig = tableConfig
         self.clock = clock
         self.haptics = haptics
+        self.audio = audio
         self.bypassAnimation = bypassAnimation
 
         self.phase = .awaitingBets
@@ -302,6 +305,9 @@ final class GameTableViewModel {
         stagedAnte = (next == 0 || chipBalance >= next * 2) ? next : 0
         if stagedAnte != before {
             haptics.impact(.medium)
+            if stagedAnte > 0 {
+                audio.play(.chipPlace)
+            }
         }
         // Drop staged Trips if the new Ante leaves no room for it on
         // top of the worst-case main bet. Trips does NOT auto-restore
@@ -329,6 +335,9 @@ final class GameTableViewModel {
         stagedTrips = (next == 0 || chipBalance >= stagedAnte * 6 + next) ? next : 0
         if stagedTrips != before {
             haptics.impact(.medium)
+            if stagedTrips > 0 {
+                audio.play(.chipPlace)
+            }
         }
     }
 
@@ -368,6 +377,7 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPreFlop(multiplier: multiplier))
         guard errorMessage == nil else { return }
+        audio.play(.chipStackHandle)
         // Pre-flop bet reveals all five community cards, then dealer + chips.
         runAnimation { [weak self] token in
             await self?.animateAllCommunity(token: token)
@@ -389,6 +399,7 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPostFlop)
         guard errorMessage == nil else { return }
+        audio.play(.chipStackHandle)
         // Post-flop bet reveals turn + river together, then resolves.
         runAnimation { [weak self] token in
             await self?.animateTurnAndRiver(token: token)
@@ -410,6 +421,7 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPostRiver)
         guard errorMessage == nil else { return }
+        audio.play(.chipStackHandle)
         // No new cards revealed — straight to dealer flip + chip resolution.
         runAnimation { [weak self] token in
             await self?.maybeAnimateHandResolution(token: token)
@@ -420,6 +432,7 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.fold)
         guard errorMessage == nil else { return }
+        audio.play(.fold)
         runAnimation { [weak self] token in
             await self?.maybeAnimateHandResolution(token: token)
         }
@@ -627,14 +640,20 @@ final class GameTableViewModel {
         revealedCards.insert(card)
     }
 
-    /// Reveals a card and fires the per-flip light haptic. Used by the
-    /// staggered choreography paths (deal, flop, turn/river, dealer reveal).
-    /// The bare `reveal(_:)` is kept for the bulk-reveal sweep in
-    /// `finalizeSettledState`, which would otherwise burst 5-7 taps in
-    /// ~16ms — unpleasant and not what the trigger map intends.
-    private func revealWithHaptic(_ card: Card) {
+    /// Reveals a card and fires the per-flip light haptic plus an
+    /// optional SFX. Used by the staggered choreography paths (deal,
+    /// flop, turn/river, dealer reveal). The bare `reveal(_:)` is kept
+    /// for the bulk-reveal sweep in `finalizeSettledState`, which
+    /// would otherwise burst 5-7 taps in ~16ms — unpleasant and not
+    /// what the trigger map intends.
+    ///
+    /// `sfx` defaults to `nil` so callers must opt in explicitly. The
+    /// trigger map (Session 19a): player hole-card flip → `.cardDeal`,
+    /// community card → `.cardPlace`, dealer reveal → `.cardFlip`.
+    private func revealWithHaptic(_ card: Card, sfx: SoundEffect? = nil) {
         revealedCards.insert(card)
         haptics.impact(.light)
+        if let sfx { audio.play(sfx) }
     }
 
     /// Player-deal flip: card 1 starts at 0ms (300ms), card 2 at 150ms (300ms).
@@ -657,10 +676,10 @@ final class GameTableViewModel {
         await Task.yield()
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(playerHoleCards[0])
+        revealWithHaptic(playerHoleCards[0], sfx: .cardDeal)
         await clock.sleep(milliseconds: 150)
         guard isCurrent(token) else { return }
-        revealWithHaptic(playerHoleCards[1])
+        revealWithHaptic(playerHoleCards[1], sfx: .cardDeal)
         await clock.sleep(milliseconds: 300) // card 2's flip window
     }
 
@@ -679,15 +698,15 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200) // burn pause
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(communityCards[0])
+        revealWithHaptic(communityCards[0], sfx: .cardPlace)
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(communityCards[1])
+        revealWithHaptic(communityCards[1], sfx: .cardPlace)
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(communityCards[2])
+        revealWithHaptic(communityCards[2], sfx: .cardPlace)
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 
@@ -704,12 +723,12 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(communityCards[3])
+        revealWithHaptic(communityCards[3], sfx: .cardPlace)
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
 
         animationStage = .revealingRiver
-        revealWithHaptic(communityCards[4])
+        revealWithHaptic(communityCards[4], sfx: .cardPlace)
         await clock.sleep(milliseconds: 250)
     }
 
@@ -727,7 +746,7 @@ final class GameTableViewModel {
         await clock.sleep(milliseconds: 200)
         for i in 0..<5 {
             guard isCurrent(token) else { return }
-            revealWithHaptic(communityCards[i])
+            revealWithHaptic(communityCards[i], sfx: .cardPlace)
             if i < 4 {
                 await clock.sleep(milliseconds: 150)
             } else {
@@ -750,10 +769,10 @@ final class GameTableViewModel {
         await Task.yield()
         guard isCurrent(token) else { return }
 
-        revealWithHaptic(dealerHoleCards[0])
+        revealWithHaptic(dealerHoleCards[0], sfx: .cardFlip)
         await clock.sleep(milliseconds: 200)
         guard isCurrent(token) else { return }
-        revealWithHaptic(dealerHoleCards[1])
+        revealWithHaptic(dealerHoleCards[1], sfx: .cardFlip)
         await clock.sleep(milliseconds: 250) // final flip duration
     }
 
@@ -851,6 +870,13 @@ final class GameTableViewModel {
         let playOutcome  = BetZoneOutcome.from(outcome: result.playOutcome,  stake: playBet)
         let tripsOutcome = BetZoneOutcome.from(outcome: result.tripsOutcome, stake: tripsBet)
 
+        // Fire the hand-level outcome SFX at the start of chip resolution.
+        // Win SFX + chip payoff play simultaneously (Session 19a trigger map);
+        // big vs small is gated on flush-or-better. Push is intentionally
+        // silent. Fold skips this path entirely (no dealer reveal, no
+        // ceremony) so the `.fold` SFX from `fold()` is the only audio cue.
+        playHandResolutionSFX(result: result)
+
         // Snapshot the engine's current balance — that's where the displayed
         // value lands once chips arrive at the tray. Until then the view
         // continues to show the pre-resolution number.
@@ -882,6 +908,23 @@ final class GameTableViewModel {
         }
         // Hold a beat for the number animation to land before settling.
         await clock.sleep(milliseconds: 150)
+    }
+
+    /// Fires the hand-level outcome SFX at the start of chip resolution.
+    /// Big-win cutoff is flush-or-better — matches the prompt's mapping
+    /// (and reads as casino-correct: flush is where the Blind bonus
+    /// pays at a multiplier, so it's the natural threshold for the
+    /// bigger sting). Push is silent (V1 design choice).
+    private func playHandResolutionSFX(result: HandResult) {
+        let net = result.totalNet
+        if net > 0 {
+            let bigWin = result.playerHand.rank >= .flush
+            audio.play(bigWin ? .winBig : .winSmall)
+            audio.play(.chipPayoff)
+        } else if net < 0 {
+            audio.play(.loss)
+        }
+        // net == 0 → push: intentionally silent.
     }
 
     private enum Zone { case ante, blind, play, trips }

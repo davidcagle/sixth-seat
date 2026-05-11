@@ -529,7 +529,14 @@ struct CeremonyTests {
         haptics: HapticsService = NoopHapticsService()
     ) -> GameTableViewModel {
         let store = InMemoryChipStore(chipBalance: balance, hasReceivedStarterBonus: true)
-        return GameTableViewModel(chipStore: store, clock: clock, haptics: haptics)
+        // Keep the real audio service out of the animation timing
+        // path — see AnimationTests.makeVM for rationale.
+        return GameTableViewModel(
+            chipStore: store,
+            clock: clock,
+            haptics: haptics,
+            audio: InMemoryAudioService()
+        )
     }
 
     private func drainAnimations() async {

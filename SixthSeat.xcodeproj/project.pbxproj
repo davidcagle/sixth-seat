@@ -31,6 +31,9 @@
 		C0000000000000000000027C1 /* ChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002AB1 /* ChipView.swift */; };
 		C0000000000000000000028C1 /* AssetPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002BB1 /* AssetPipelineTests.swift */; };
 		C0000000000000000000029C1 /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002CB1 /* DebugMenuView.swift */; };
+		C000000000000000000002AC1 /* AudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002DB1 /* AudioService.swift */; };
+		C000000000000000000002BC1 /* Audio in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002EB1 /* Audio */; };
+		C000000000000000000002CC1 /* AudioServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002FB1 /* AudioServiceTests.swift */; };
 		C000000000000000000001C1 /* SixthSeatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000001B1 /* SixthSeatApp.swift */; };
 		C000000000000000000002C1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002B1 /* ContentView.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
@@ -87,6 +90,9 @@
 		B000000000000000000002AB1 /* ChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChipView.swift; sourceTree = "<group>"; };
 		B000000000000000000002BB1 /* AssetPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetPipelineTests.swift; sourceTree = "<group>"; };
 		B000000000000000000002CB1 /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
+		B000000000000000000002DB1 /* AudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioService.swift; sourceTree = "<group>"; };
+		B000000000000000000002EB1 /* Audio */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/Audio; sourceTree = "<group>"; };
+		B000000000000000000002FB1 /* AudioServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioServiceTests.swift; sourceTree = "<group>"; };
 		B000000000000000000002B1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -150,6 +156,7 @@
 				A000000000000000000009A1 /* Views */,
 				A00000000000000000000AA1 /* ViewModels */,
 				B000000000000000000004B1 /* Assets.xcassets */,
+				B000000000000000000002EB1 /* Audio */,
 				B000000000000000000003B1 /* Disclosures.plist */,
 			);
 			path = App;
@@ -171,6 +178,7 @@
 				B0000000000000000000025B1 /* HandResultHeadlineTests.swift */,
 				B0000000000000000000027B1 /* ChipShopViewModelTests.swift */,
 				B000000000000000000002BB1 /* AssetPipelineTests.swift */,
+				B000000000000000000002FB1 /* AudioServiceTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -206,6 +214,7 @@
 				B0000000000000000000020B1 /* GatedHapticsService.swift */,
 				B0000000000000000000026B1 /* ChipShopViewModel.swift */,
 				B0000000000000000000029B1 /* AssetService.swift */,
+				B000000000000000000002DB1 /* AudioService.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -301,6 +310,7 @@
 			files = (
 				C000000000000000000003C1 /* Assets.xcassets in Resources */,
 				C000000000000000000004C1 /* Disclosures.plist in Resources */,
+				C000000000000000000002BC1 /* Audio in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,6 +351,7 @@
 				C0000000000000000000024C1 /* ChipShopViewModel.swift in Sources */,
 				C0000000000000000000026C1 /* AssetService.swift in Sources */,
 				C0000000000000000000029C1 /* DebugMenuView.swift in Sources */,
+				C000000000000000000002AC1 /* AudioService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -361,6 +372,7 @@
 				C0000000000000000000023C1 /* HandResultHeadlineTests.swift in Sources */,
 				C0000000000000000000025C1 /* ChipShopViewModelTests.swift in Sources */,
 				C0000000000000000000028C1 /* AssetPipelineTests.swift in Sources */,
+				C000000000000000000002CC1 /* AudioServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

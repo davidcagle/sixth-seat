@@ -13,6 +13,7 @@ struct ContentView: View {
 
     let chipStore: ChipStoreProtocol
     let iapService: IAPService
+    let audioService: AudioService
 
     @State private var path: [MenuDestination] = []
     @State private var didRunSmokeTest = false
@@ -32,6 +33,7 @@ struct ContentView: View {
                         GameDestinationView(
                             chipStore: chipStore,
                             tableConfig: TableConfig.table(forID: tableID),
+                            audioService: audioService,
                             path: $path
                         )
                     case .tableSelect:
@@ -86,8 +88,17 @@ private struct GameDestinationView: View {
     @State private var viewModel: GameTableViewModel
     @Binding var path: [MenuDestination]
 
-    init(chipStore: ChipStoreProtocol, tableConfig: TableConfig, path: Binding<[MenuDestination]>) {
-        _viewModel = State(initialValue: GameTableViewModel(chipStore: chipStore, tableConfig: tableConfig))
+    init(
+        chipStore: ChipStoreProtocol,
+        tableConfig: TableConfig,
+        audioService: AudioService,
+        path: Binding<[MenuDestination]>
+    ) {
+        _viewModel = State(initialValue: GameTableViewModel(
+            chipStore: chipStore,
+            tableConfig: tableConfig,
+            audio: audioService
+        ))
         self._path = path
     }
 
@@ -103,6 +114,7 @@ private struct GameDestinationView: View {
     let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
     return ContentView(
         chipStore: store,
-        iapService: InMemoryIAPService(chipStore: store)
+        iapService: InMemoryIAPService(chipStore: store),
+        audioService: InMemoryAudioService()
     )
 }

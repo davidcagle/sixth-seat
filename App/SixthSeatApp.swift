@@ -16,17 +16,30 @@ struct SixthSeatApp: App {
     /// the next time the process is alive.
     @State private var iapService: StoreKitIAPService
 
+    /// One audio service for the entire app. Configures
+    /// `AVAudioSession` for `.ambient` + `.mixWithOthers` on
+    /// construction (iOS only) so SFX coexist with the player's
+    /// background music. Caches one `AVAudioPlayer` per SFX so
+    /// repeated plays don't pay disk-load cost. (Session 19a)
+    private let audioService: AudioService
+
     init() {
         let store = UserDefaultsChipStore()
         let iap = StoreKitIAPService(chipStore: store)
         iap.startTransactionListener()
         _chipStore = State(initialValue: store)
         _iapService = State(initialValue: iap)
+        audioService = AVAudioService()
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(chipStore: chipStore, iapService: iapService)
+            ContentView(
+                chipStore: chipStore,
+                iapService: iapService,
+                audioService: audioService
+            )
+            .environment(\.audio, audioService)
         }
     }
 }

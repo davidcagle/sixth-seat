@@ -831,3 +831,179 @@ struct GameTableViewModelTests {
         InMemoryChipStore(chipBalance: chipBalance, hasReceivedStarterBonus: true)
     }
 }
+
+// MARK: - Session 19a SFX wiring
+
+@MainActor
+@Suite("GameTableViewModel SFX wiring (Session 19a)")
+struct GameTableViewModelAudioTests {
+
+    /// Builds a VM with the immediate animation clock so the per-card
+    /// reveal Tasks settle within a yield-loop, plus an `InMemoryAudioService`
+    /// that records every `play(_:)` call for assertion.
+    private static func makeVM(
+        balance: Int = 10_000,
+        audio: InMemoryAudioService
+    ) -> GameTableViewModel {
+        let store = InMemoryChipStore(chipBalance: balance, hasReceivedStarterBonus: true)
+        return GameTableViewModel(
+            chipStore: store,
+            clock: ImmediateAnimationClock(),
+            haptics: NoopHapticsService(),
+            audio: audio
+        )
+    }
+
+    private static func drain() async {
+        for _ in 0..<32 { await Task.yield() }
+    }
+
+    @Test("cycleAnteBet fires chipPlace SFX on a non-zero step and stays silent on the $0 step")
+    func anteCycleFiresChipPlace() {
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+
+        // .table10 cycle: [10, 15, 25, 50, 100, 0]. Init lands on $10.
+        // Each non-zero advance should fire chipPlace; the $0 step is
+        // the "cleared" state and must stay silent (no chips moving).
+        vm.cycleAnteBet() // → 15
+        vm.cycleAnteBet() // → 25
+        vm.cycleAnteBet() // → 50
+        vm.cycleAnteBet() // → 100
+        vm.cycleAnteBet() // → 0 (silent)
+        vm.cycleAnteBet() // wrap → 10
+
+        #expect(audio.playLog == [
+            .chipPlace, .chipPlace, .chipPlace, .chipPlace, .chipPlace
+        ])
+    }
+
+    @Test("fold() fires the fold SFX")
+    func foldFiresFoldSFX() async {
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        vm.deal()
+        await Self.drain()
+        vm.checkPreFlop()
+        await Self.drain()
+        vm.checkPostFlop()
+        await Self.drain()
+
+        audio.reset() // clear the deal/community SFX so we isolate fold's
+
+        vm.fold()
+        await Self.drain()
+
+        #expect(audio.playLog.contains(.fold))
+    }
+
+    @Test("Pre-flop Play bet fires chipStackHandle SFX")
+    func preFlopBetFiresChipStackHandle() async {
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        vm.deal()
+        await Self.drain()
+
+        audio.reset() // strip the deal-time cardDeal entries
+
+        vm.betPreFlop(multiplier: 3)
+        await Self.drain()
+
+        #expect(audio.playLog.first == .chipStackHandle)
+    }
+
+    @Test("Player hole-card flips fire cardDeal × 2 and community reveal fires cardPlace × 5")
+    func dealAndCommunityFireCardSFX() async {
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        vm.deal()
+        await Self.drain()
+
+        // The deal flips player cards face-up via animatePlayerHoleCards
+        // → 2 cardDeal plays. No community reveals yet at this stage.
+        let cardDealCount = audio.playLog.filter { $0 == .cardDeal }.count
+        let cardPlaceCount = audio.playLog.filter { $0 == .cardPlace }.count
+        #expect(cardDealCount == 2)
+        #expect(cardPlaceCount == 0)
+
+        audio.reset()
+
+        // Pre-flop bet reveals all five community cards via
+        // animateAllCommunity → 5 cardPlace plays.
+        vm.betPreFlop(multiplier: 3)
+        await Self.drain()
+
+        let cardPlaceCountAfterReveal = audio.playLog.filter { $0 == .cardPlace }.count
+        #expect(cardPlaceCountAfterReveal == 5)
+    }
+
+    #if DEBUG
+    @Test("Showdown fires cardFlip × 2 for the dealer reveal and chipPayoff + winBig for a flush")
+    func showdownFiresDealerFlipAndWinSFX() async {
+        // DebugScenario.playerFlushOnRiver: player makes a hearts flush,
+        // dealer holds pair of queens (qualifies). Player wins on a
+        // flush — the flush-or-better cutoff fires winBig (not winSmall).
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        DebugDealForcer.pendingScenario = .playerFlushOnRiver
+        vm.deal()
+        await Self.drain()
+        vm.checkPreFlop()
+        await Self.drain()
+        vm.checkPostFlop()
+        await Self.drain()
+
+        audio.reset() // isolate the showdown's audio from the deal/reveal
+
+        vm.betPostRiver()
+        await Self.drain()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.lastHandResult?.playerHand.rank == .flush)
+        // Two cardFlip plays for the dealer reveal.
+        let cardFlipCount = audio.playLog.filter { $0 == .cardFlip }.count
+        #expect(cardFlipCount == 2)
+        // Win-side SFX: winBig (flush threshold) + chipPayoff.
+        #expect(audio.playLog.contains(.winBig))
+        #expect(audio.playLog.contains(.chipPayoff))
+        #expect(audio.playLog.contains(.winSmall) == false)
+        #expect(audio.playLog.contains(.loss) == false)
+    }
+    #endif
+
+    #if DEBUG
+    @Test("A push outcome plays no win/loss SFX (V1 silent-push convention)")
+    func pushIsSilent() async {
+        // DebugScenario.push: broadway straight on the board, player and
+        // dealer share the identical 5-card hand → main bets push. With
+        // no Trips bet placed the totalNet is 0 → playHandResolutionSFX
+        // intentionally fires nothing.
+        let audio = InMemoryAudioService()
+        let vm = Self.makeVM(audio: audio)
+        vm.stagedAnte = 10
+        DebugDealForcer.pendingScenario = .push
+        vm.deal()
+        await Self.drain()
+        vm.checkPreFlop()
+        await Self.drain()
+        vm.checkPostFlop()
+        await Self.drain()
+
+        audio.reset()
+
+        vm.betPostRiver()
+        await Self.drain()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.lastHandResult?.totalNet == 0)
+        #expect(audio.playLog.contains(.winSmall) == false)
+        #expect(audio.playLog.contains(.winBig) == false)
+        #expect(audio.playLog.contains(.loss) == false)
+        #expect(audio.playLog.contains(.chipPayoff) == false)
+    }
+    #endif
+}

@@ -14,7 +14,17 @@ struct AnimationTests {
         haptics: HapticsService = NoopHapticsService()
     ) -> GameTableViewModel {
         let store = InMemoryChipStore(chipBalance: balance, hasReceivedStarterBonus: true)
-        return GameTableViewModel(chipStore: store, clock: ImmediateAnimationClock(), haptics: haptics)
+        // Inject InMemoryAudioService so AVAudioSession configuration
+        // and AVAudioPlayer disk loads stay out of the animation-timing
+        // hot path; the production audio service has on-init overhead
+        // that introduces nondeterminism into the drainAnimations
+        // yield count. (Session 19a)
+        return GameTableViewModel(
+            chipStore: store,
+            clock: ImmediateAnimationClock(),
+            haptics: haptics,
+            audio: InMemoryAudioService()
+        )
     }
 
     // MARK: - Outcome computation
@@ -229,7 +239,7 @@ struct AnimationTests {
     func session12_flopRevealStaggerLeavesTurnRiverFaceDown() async {
         let clock = ManualAnimationClock()
         let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        let vm = GameTableViewModel(chipStore: store, clock: clock, audio: InMemoryAudioService())
         vm.stagedAnte = 10
 
         // Drive deal to completion via the manual clock.
@@ -307,7 +317,7 @@ struct AnimationTests {
     func session12_allCommunityRevealStepwise() async {
         let clock = ManualAnimationClock()
         let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        let vm = GameTableViewModel(chipStore: store, clock: clock, audio: InMemoryAudioService())
         vm.stagedAnte = 10
 
         let drainAndResume: () async -> Void = {
@@ -446,7 +456,7 @@ struct AnimationTests {
     func foldSkipsDealerRevealSleeps() async {
         let clock = ManualAnimationClock()
         let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        let vm = GameTableViewModel(chipStore: store, clock: clock, audio: InMemoryAudioService())
         vm.stagedAnte = 10
 
         // Drive deal → preFlop check → postFlop check, draining all sleeps
@@ -490,7 +500,7 @@ struct AnimationTests {
         // suspends on the 200ms sleep. The 250ms sleep gates reveal[1].
         let clock = ManualAnimationClock()
         let store = InMemoryChipStore(chipBalance: 5_000, hasReceivedStarterBonus: true)
-        let vm = GameTableViewModel(chipStore: store, clock: clock)
+        let vm = GameTableViewModel(chipStore: store, clock: clock, audio: InMemoryAudioService())
         vm.stagedAnte = 10
 
         let drainAndResume: () async -> Void = {
