@@ -33,6 +33,18 @@ public struct Deck {
         shuffle()
     }
 
+    #if DEBUG
+    /// Debug-only initializer: produces a deck whose `deal()` returns the
+    /// given cards in the listed order before emptying. The internal
+    /// storage is reversed because `deal()` pops from the end via
+    /// `removeLast()`. Never compiled into Release builds — used solely
+    /// by the Session 18c debug-deal-forcing affordance to reproduce
+    /// specific UTH outcomes on demand.
+    public init(forcedDealOrder cards: [Card]) {
+        self.cards = cards.reversed()
+    }
+    #endif
+
     private static func freshCards() -> [Card] {
         var result: [Card] = []
         result.reserveCapacity(52)

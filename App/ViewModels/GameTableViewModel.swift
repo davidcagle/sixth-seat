@@ -344,6 +344,16 @@ final class GameTableViewModel {
             dispatch(.placeTrips(amount: stagedTrips))
             guard errorMessage == nil else { return }
         }
+        #if DEBUG
+        // Session 18c: if a DebugMenuView scenario was armed, swap the
+        // engine's deck for the forced sequence before dispatching the
+        // deal. Single-shot — `collectAndReset` reshuffles to a normal
+        // 52-card random deck at hand end.
+        if let scenario = DebugDealForcer.pendingScenario {
+            DebugDealForcer.pendingScenario = nil
+            game.setForcedDeck(Deck(forcedDealOrder: scenario.dealOrder))
+        }
+        #endif
         dispatch(.deal)
         guard errorMessage == nil else { return }
         currentDealId &+= 1

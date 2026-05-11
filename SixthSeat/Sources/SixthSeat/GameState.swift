@@ -254,6 +254,18 @@ public final class GameState {
         phase = .handComplete
     }
 
+    #if DEBUG
+    /// Debug-only — replaces the current deck so the next `deal()` pulls
+    /// from a forced sequence. Single-use: `collectAndReset()` reshuffles
+    /// the deck back to a normal random 52-card state, so any force only
+    /// affects the immediately-following hand. Never compiled into
+    /// Release builds; gated behind the Session 18c affordance and used
+    /// solely from the hidden DebugMenuView path.
+    public func setForcedDeck(_ deck: Deck) {
+        self.deck = deck
+    }
+    #endif
+
     // MARK: - Reset
 
     private func collectAndReset() -> Result<Void, GameError> {

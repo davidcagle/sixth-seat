@@ -92,6 +92,12 @@ struct MainMenuView: View {
     @State private var balance: Int = 0
     @State private var hasUsedSecondChance: Bool = false
 
+    #if DEBUG
+    /// Session 18c — drives the hidden debug-menu sheet revealed by a
+    /// long-press on the title. Never compiled into Release builds.
+    @State private var showDebugMenu: Bool = false
+    #endif
+
     private let feltColor = Color(red: 0.1, green: 0.4, blue: 0.2)
 
     var body: some View {
@@ -117,6 +123,11 @@ struct MainMenuView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { refresh() }
+        #if DEBUG
+        .sheet(isPresented: $showDebugMenu) {
+            DebugMenuView(isPresented: $showDebugMenu)
+        }
+        #endif
     }
 
     private func refresh() {
@@ -125,7 +136,7 @@ struct MainMenuView: View {
     }
 
     private var titleSection: some View {
-        VStack(spacing: 2) {
+        let stack = VStack(spacing: 2) {
             Text("6th Seat")
                 .font(.system(size: 44, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
@@ -136,6 +147,20 @@ struct MainMenuView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("6th Seat Hold'em")
         .accessibilityIdentifier("MainMenu.Title")
+
+        #if DEBUG
+        // Session 18c — long-press the title to reveal the hidden
+        // debug deal-forcing menu. Production users never see this:
+        // there is no on-screen affordance, and the whole branch is
+        // gated behind `#if DEBUG`.
+        return stack.simultaneousGesture(
+            LongPressGesture(minimumDuration: 1.5).onEnded { _ in
+                showDebugMenu = true
+            }
+        )
+        #else
+        return stack
+        #endif
     }
 
     private var balanceSection: some View {
