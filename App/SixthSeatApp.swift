@@ -1,5 +1,6 @@
 import SwiftUI
 import SixthSeat
+import TelemetryDeck
 
 @main
 struct SixthSeatApp: App {
@@ -23,13 +24,47 @@ struct SixthSeatApp: App {
     /// repeated plays don't pay disk-load cost. (Session 19a)
     private let audioService: AudioService
 
+    /// One telemetry service for the entire app. Held so
+    /// `GameTableViewModel` can report `handResolved` events alongside
+    /// the IAP service's purchase events. (Session 19b)
+    let telemetryService: TelemetryService
+
+    /// TelemetryDeck app ID. Hardcoded placeholder for Session 19b —
+    /// David will replace this with the real ID via App Store Connect /
+    /// TelemetryDeck dashboard before the first TestFlight upload.
+    /// The placeholder ships in the Release binary intentionally so the
+    /// `strings $RELEASE_BINARY` sanity-check in HANDOFF picks it up.
+    // TODO: David — set TelemetryDeck app ID before TestFlight.
+    private static let telemetryDeckAppID = "TELEMETRYDECK_APP_ID_PLACEHOLDER"
+
     init() {
+        // Initialize TelemetryDeck FIRST so any IAP-completion telemetry
+        // calls from `iap.startTransactionListener()` below dispatch to
+        // a live SDK. Background `Transaction.updates` deliveries that
+        // race with app launch otherwise risk firing into a deinitialized
+        // singleton.
+        //
+        // DEBUG builds use the console-logging telemetry service so the
+        // dev-loop doesn't burn TelemetryDeck quota with noise; Release
+        // dispatches to TelemetryDeck. Both conform to the same
+        // `TelemetryService` protocol — the IAP service doesn't know
+        // which one it has.
+        #if DEBUG
+        let telemetry: TelemetryService = LoggingTelemetryService()
+        #else
+        TelemetryDeck.initialize(
+            config: TelemetryDeck.Config(appID: Self.telemetryDeckAppID)
+        )
+        let telemetry: TelemetryService = TelemetryDeckTelemetryService()
+        #endif
+
         let store = UserDefaultsChipStore()
-        let iap = StoreKitIAPService(chipStore: store)
+        let iap = StoreKitIAPService(chipStore: store, telemetry: telemetry)
         iap.startTransactionListener()
         _chipStore = State(initialValue: store)
         _iapService = State(initialValue: iap)
         audioService = AVAudioService()
+        telemetryService = telemetry
     }
 
     var body: some Scene {
@@ -37,7 +72,8 @@ struct SixthSeatApp: App {
             ContentView(
                 chipStore: chipStore,
                 iapService: iapService,
-                audioService: audioService
+                audioService: audioService,
+                telemetryService: telemetryService
             )
             .environment(\.audio, audioService)
         }

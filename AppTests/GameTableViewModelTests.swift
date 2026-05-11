@@ -1087,3 +1087,122 @@ struct GameTableViewModelAudioTests {
     }
     #endif
 }
+
+// MARK: - Session 19b hand-resolution telemetry
+
+@MainActor
+@Suite("GameTableViewModel hand-resolution telemetry (Session 19b)")
+struct GameTableViewModelTelemetryTests {
+
+    #if DEBUG
+    @Test("Hand resolution fires telemetry with tableID, ante, trips=0, win tone, trips notPlaced (player flush, no Trips)")
+    func handResolutionFiresWinPayload() {
+        let telemetry = RecordingTelemetryService()
+        let store = InMemoryChipStore(chipBalance: 10_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(
+            chipStore: store,
+            tableConfig: .table10,
+            haptics: NoopHapticsService(),
+            audio: InMemoryAudioService(),
+            telemetry: telemetry,
+            bypassAnimation: true
+        )
+        vm.stagedAnte = 10
+        DebugDealForcer.pendingScenario = .playerFlushOnRiver
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        let handEvents = telemetry.events.compactMap { event -> RecordingTelemetryService.Event? in
+            if case .handResolved = event { return event }
+            return nil
+        }
+        #expect(handEvents.count == 1)
+        guard case .handResolved(let tableID, let ante, let trips, let tone, let tripsOutcome) = handEvents.first! else {
+            Issue.record("expected handResolved event")
+            return
+        }
+        #expect(tableID == "table_10")
+        #expect(ante == 10)
+        #expect(trips == 0)
+        #expect(tone == .win)
+        #expect(tripsOutcome == .notPlaced)
+    }
+    #endif
+
+    #if DEBUG
+    @Test("Hand resolution fires telemetry with push tone on the broadway-tie scenario")
+    func handResolutionFiresPushPayload() {
+        let telemetry = RecordingTelemetryService()
+        let store = InMemoryChipStore(chipBalance: 10_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(
+            chipStore: store,
+            tableConfig: .table25,
+            haptics: NoopHapticsService(),
+            audio: InMemoryAudioService(),
+            telemetry: telemetry,
+            bypassAnimation: true
+        )
+        vm.stagedAnte = 25
+        DebugDealForcer.pendingScenario = .push
+
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+
+        let handEvents = telemetry.events.compactMap { event -> RecordingTelemetryService.Event? in
+            if case .handResolved = event { return event }
+            return nil
+        }
+        #expect(handEvents.count == 1)
+        guard case .handResolved(let tableID, _, _, let tone, _) = handEvents.first! else {
+            Issue.record("expected handResolved event")
+            return
+        }
+        #expect(tableID == "table_25")
+        #expect(tone == .push)
+    }
+    #endif
+
+    @Test("Hand resolution fires exactly once per hand — not on every syncFromGame call while at .handComplete")
+    func handResolutionFiresOnceAcrossPhaseChurn() {
+        let telemetry = RecordingTelemetryService()
+        let store = InMemoryChipStore(chipBalance: 10_000, hasReceivedStarterBonus: true)
+        let vm = GameTableViewModel(
+            chipStore: store,
+            haptics: NoopHapticsService(),
+            audio: InMemoryAudioService(),
+            telemetry: telemetry,
+            bypassAnimation: true
+        )
+        vm.stagedAnte = 10
+        // Walk to .postRiverDecision (fold is only legal there) then
+        // fold to drop into .handComplete. checkPreFlop / checkPostFlop
+        // advance phase without consuming chips, so the chosen path
+        // doesn't bias the result tone.
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.fold()
+
+        let beforeCount = telemetry.events.filter {
+            if case .handResolved = $0 { return true } else { return false }
+        }.count
+        #expect(beforeCount == 1)
+
+        // Trigger additional syncs by attempting actions that no-op at
+        // .handComplete (or whose dispatch is rejected). The
+        // previousPhase != .handComplete guard in syncFromGame must
+        // prevent any duplicate handResolved emission.
+        vm.placeAnte(amount: 10)
+        vm.cycleAnteBet()
+
+        let afterCount = telemetry.events.filter {
+            if case .handResolved = $0 { return true } else { return false }
+        }.count
+        #expect(afterCount == 1)
+    }
+}

@@ -111,6 +111,7 @@ final class GameTableViewModel {
     private let clock: AnimationClock
     private let haptics: HapticsService
     private let audio: AudioService
+    private let telemetry: TelemetryService
     /// When true, every choreography call settles synchronously on the
     /// dispatching frame — used by engine-only unit tests that don't
     /// want to drive the animation Task.
@@ -149,6 +150,7 @@ final class GameTableViewModel {
         clock: AnimationClock = RealAnimationClock(),
         haptics: HapticsService = GatedHapticsService(underlying: SystemHapticsService()),
         audio: AudioService = AVAudioService(),
+        telemetry: TelemetryService = LoggingTelemetryService(),
         bypassAnimation: Bool = false
     ) {
         let store = chipStore ?? InMemoryChipStore()
@@ -158,6 +160,7 @@ final class GameTableViewModel {
         self.clock = clock
         self.haptics = haptics
         self.audio = audio
+        self.telemetry = telemetry
         self.bypassAnimation = bypassAnimation
 
         self.phase = .awaitingBets
@@ -515,6 +518,7 @@ final class GameTableViewModel {
         if previousPhase != .handComplete && game.phase == .handComplete {
             lastAnteBet = game.anteBet
             lastTripsBet = game.tripsBet
+            reportHandResolutionTelemetry()
         }
 
         // While animating, the displayed balance lags the engine — the
@@ -536,6 +540,41 @@ final class GameTableViewModel {
         case .invalidMultiplier(let given, let allowed):
             return "Bet \(given)× not allowed. Use \(allowed.map(String.init).joined(separator: " or "))×."
         }
+    }
+
+    /// Fires `TelemetryService.handResolved` on the transition into
+    /// `.handComplete`. Called from `syncFromGame` so the event lands
+    /// the moment the engine reaches the hand's resolution — same beat
+    /// as `lastAnteBet` / `lastTripsBet` snapshotting, before the
+    /// dealer-reveal animation begins. Balance amounts are deliberately
+    /// not included on the payload (privacy: derivable from purchase
+    /// history + game outcomes server-side). (Session 19b)
+    private func reportHandResolutionTelemetry() {
+        guard let result = game.lastHandResult else { return }
+        let tone: HandResultTone
+        let net = result.totalNet
+        if net > 0 { tone = .win }
+        else if net < 0 { tone = .loss }
+        else { tone = .push }
+
+        let tripsOutcome: TripsTelemetryOutcome
+        if game.tripsBet == 0 {
+            tripsOutcome = .notPlaced
+        } else {
+            switch result.tripsOutcome {
+            case .win, .blindBonus: tripsOutcome = .paid
+            case .lose:             tripsOutcome = .lost
+            case .push:             tripsOutcome = .notPlaced // Trips never pushes; defensive only.
+            }
+        }
+
+        telemetry.handResolved(
+            tableID: tableConfig.id,
+            anteAmount: game.anteBet,
+            tripsAmount: game.tripsBet,
+            resultTone: tone,
+            tripsOutcome: tripsOutcome
+        )
     }
 
     // MARK: - Animation choreography
