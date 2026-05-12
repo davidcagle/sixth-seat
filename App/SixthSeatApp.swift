@@ -34,8 +34,7 @@ struct SixthSeatApp: App {
     /// TelemetryDeck dashboard before the first TestFlight upload.
     /// The placeholder ships in the Release binary intentionally so the
     /// `strings $RELEASE_BINARY` sanity-check in HANDOFF picks it up.
-    // TODO: David — set TelemetryDeck app ID before TestFlight.
-    private static let telemetryDeckAppID = "TELEMETRYDECK_APP_ID_PLACEHOLDER"
+    private static let telemetryDeckAppID = "F5C9AE2A-B805-4266-B39D-69F0ADCEEC83"
 
     init() {
         // Initialize TelemetryDeck FIRST so any IAP-completion telemetry
