@@ -12,6 +12,15 @@ struct GameTableView: View {
 
     private let feltColor = Color(red: 0.1, green: 0.4, blue: 0.2)
 
+    // Card sizing — Session 21 uniformly scaled hole + community slots
+    // 1.4× from the pre-Session-21 baseline to give the real Fiverr
+    // card art appropriate weight on the felt. Hole baseline 60×84,
+    // community baseline 52×72.
+    private let holeCardWidth:  CGFloat = 84
+    private let holeCardHeight: CGFloat = 118
+    private let communityCardWidth:  CGFloat = 73
+    private let communityCardHeight: CGFloat = 101
+
     var body: some View {
         ZStack {
             feltColor.ignoresSafeArea()
@@ -138,12 +147,14 @@ struct GameTableView: View {
             HStack(spacing: 8) {
                 CardView(
                     card: viewModel.dealerHoleCards.indices.contains(0) ? viewModel.dealerHoleCards[0] : nil,
-                    faceUp: !viewModel.isDealerCardFaceDown(index: 0)
+                    faceUp: !viewModel.isDealerCardFaceDown(index: 0),
+                    width: holeCardWidth, height: holeCardHeight
                 )
                 .id("dealer-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.dealerHoleCards.indices.contains(1) ? viewModel.dealerHoleCards[1] : nil,
-                    faceUp: !viewModel.isDealerCardFaceDown(index: 1)
+                    faceUp: !viewModel.isDealerCardFaceDown(index: 1),
+                    width: holeCardWidth, height: holeCardHeight
                 )
                 .id("dealer-card-\(viewModel.currentDealId)-1")
             }
@@ -173,7 +184,7 @@ struct GameTableView: View {
         CardView(
             card: index < viewModel.communityCards.count ? viewModel.communityCards[index] : nil,
             faceUp: !viewModel.isCommunityCardFaceDown(index: index),
-            width: 52, height: 72
+            width: communityCardWidth, height: communityCardHeight
         )
         .id("community-card-\(viewModel.currentDealId)-\(index)")
     }
@@ -223,12 +234,14 @@ struct GameTableView: View {
             HStack(spacing: 8) {
                 CardView(
                     card: viewModel.playerHoleCards.indices.contains(0) ? viewModel.playerHoleCards[0] : nil,
-                    faceUp: !viewModel.isPlayerCardFaceDown(index: 0)
+                    faceUp: !viewModel.isPlayerCardFaceDown(index: 0),
+                    width: holeCardWidth, height: holeCardHeight
                 )
                 .id("player-card-\(viewModel.currentDealId)-0")
                 CardView(
                     card: viewModel.playerHoleCards.indices.contains(1) ? viewModel.playerHoleCards[1] : nil,
-                    faceUp: !viewModel.isPlayerCardFaceDown(index: 1)
+                    faceUp: !viewModel.isPlayerCardFaceDown(index: 1),
+                    width: holeCardWidth, height: holeCardHeight
                 )
                 .id("player-card-\(viewModel.currentDealId)-1")
             }

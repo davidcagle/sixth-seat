@@ -1,11 +1,18 @@
 import SwiftUI
+import SixthSeat
 
-/// Placeholder betting zone. Shows a label and the current wager amount
-/// (or "—" if empty). Tappable — forwards the intent back via `onTap`.
+/// Betting zone. Renders the label, a circular bet area (with a chip
+/// stack inside when there's a wager), and the dollar amount below.
+/// Tappable — forwards the intent back via `onTap`.
 ///
-/// `animation` drives chip-resolution motion. The zone's "$X" pill is
-/// the chip representation in V1 — it pulses, slides toward the tray
-/// or dealer, fades, or doubles + slides on win.
+/// Chip-stack visualization (Session 21) reads
+/// `ChipDecomposition.bestFit(for: amount)` and routes through
+/// `ChipStackView`. When `amount == 0`, no chip stack renders and the
+/// amount label collapses to "—" inside the empty circle.
+///
+/// `animation` drives chip-resolution motion. The whole zone — chip
+/// stack and labels — scales, slides, and fades together so resolution
+/// motion stays coherent.
 struct BetZoneView: View {
     let label: String
     let amount: Int
@@ -16,6 +23,8 @@ struct BetZoneView: View {
     var isDisabled: Bool = false
     var animation: BetZoneAnimation = .none
     var onTap: (() -> Void)? = nil
+
+    private let circleDiameter: CGFloat = 60
 
     var body: some View {
         let pulseScale: CGFloat = (animation == .pulsing) ? 1.18 : 1.0
@@ -37,13 +46,10 @@ struct BetZoneView: View {
         let opacity = motionOpacity * (isDisabled ? 0.45 : 1.0)
 
         let content = ZStack {
-            // The base bet zone — label + amount pill — plus a "matched"
-            // ghost chip during the win pulse so the player sees their
-            // payout materialize next to the original wager.
             zoneBody
 
             if animation == .winMatched && amount > 0 {
-                amountPill
+                amountLabel
                     .offset(x: 28)
                     .scaleEffect(0.9)
                     .transition(.opacity.combined(with: .scale))
@@ -62,31 +68,41 @@ struct BetZoneView: View {
     }
 
     private var zoneBody: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Text(label)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(.white.opacity(0.85))
                 .tracking(1)
-            amountPill
+
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.3))
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                isActive ? Color.yellow : Color.white.opacity(0.5),
+                                lineWidth: isActive ? 2 : 1
+                            )
+                    )
+
+                if amount > 0, let chip = ChipDecomposition.bestFit(for: amount) {
+                    ChipStackView(
+                        denomination: chip.denomination,
+                        count: chip.count,
+                        diameter: circleDiameter - 8
+                    )
+                    .accessibilityIdentifier("BetZone.ChipStack.\(label)")
+                }
+            }
+            .frame(width: circleDiameter, height: circleDiameter)
+
+            amountLabel
         }
-        .frame(minWidth: 60, minHeight: 60)
-        .padding(8)
-        .background(
-            Circle()
-                .fill(Color.black.opacity(0.3))
-        )
-        .overlay(
-            Circle()
-                .strokeBorder(
-                    isActive ? Color.yellow : Color.white.opacity(0.5),
-                    lineWidth: isActive ? 2 : 1
-                )
-        )
     }
 
-    private var amountPill: some View {
+    private var amountLabel: some View {
         Text(amount > 0 ? "$\(amount)" : "—")
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
             .foregroundStyle(amount > 0 ? Color.yellow : .white.opacity(0.6))
     }
 }

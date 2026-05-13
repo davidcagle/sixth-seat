@@ -211,6 +211,46 @@ struct ChipViewRenderingTests {
     }
 }
 
+@MainActor
+@Suite("BetZoneView chip-stack rendering (Session 21)")
+struct BetZoneViewChipStackTests {
+
+    @Test("Non-zero bet renders a chip stack via ChipDecomposition.bestFit")
+    func nonZeroBetRendersChipStack() {
+        let assets = InMemoryAssetService()
+        // $10 → ChipDecomposition picks ($5, count: 2); StackHeight.bestFit(2) = h1.
+        renderToImage(
+            BetZoneView(label: "ANTE", amount: 10)
+                .environment(\.assets, assets)
+        )
+        #expect(assets.stackRequests == [.init(denomination: 5, height: .h1)])
+        #expect(assets.lastStackName == "stack_5_h1")
+    }
+
+    @Test("Zero bet renders no chip stack — the empty-circle path stays")
+    func zeroBetRendersNothing() {
+        let assets = InMemoryAssetService()
+        renderToImage(
+            BetZoneView(label: "TRIPS", amount: 0)
+                .environment(\.assets, assets)
+        )
+        #expect(assets.stackRequests.isEmpty)
+        #expect(assets.lastStackName == nil)
+    }
+
+    @Test("Higher-denomination bets pick the largest chip ≤ amount")
+    func picksLargestDenomination() {
+        let assets = InMemoryAssetService()
+        // $100 → ($100, 1); StackHeight.bestFit(1) = h1.
+        renderToImage(
+            BetZoneView(label: "PLAY", amount: 100)
+                .environment(\.assets, assets)
+        )
+        #expect(assets.stackRequests == [.init(denomination: 100, height: .h1)])
+        #expect(assets.lastStackName == "stack_100_h1")
+    }
+}
+
 // MARK: - Test helpers
 
 @MainActor
