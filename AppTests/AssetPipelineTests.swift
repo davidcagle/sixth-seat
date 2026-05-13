@@ -1,5 +1,6 @@
 import SwiftUI
 import Testing
+import UIKit
 @testable import SixthSeat
 @testable import SixthSeatApp
 
@@ -248,6 +249,52 @@ struct BetZoneViewChipStackTests {
         )
         #expect(assets.stackRequests == [.init(denomination: 100, height: .h1)])
         #expect(assets.lastStackName == "stack_100_h1")
+    }
+}
+
+@MainActor
+@Suite("Chip art delivery dimensions (Session 22)")
+struct ChipArtDimensionsTests {
+
+    // Session 22: Fiverr delivered stack_5_h1.png and chip_5.png at
+    // 3661×1909 with the chip stamped in a corner; the other denoms came
+    // tight-cropped at ~800×740. After a 40×40 fit, the broken art
+    // rendered as an ~8px speck. We recrop in place; this guard catches
+    // any future redelivery from drifting back into oversized-canvas
+    // territory.
+    private static let chipDenominations = [5, 25, 100, 500, 1000]
+    private static let aspectTolerance: ClosedRange<CGFloat> = 0.7...1.3
+
+    @Test("Every chip_<denom> asset has near-square aspect (guards against canvas-padding redeliveries)")
+    func chipArtAspectStaysSquareish() {
+        for denom in Self.chipDenominations {
+            let name = "chip_\(denom)"
+            guard let img = UIImage(named: name) else {
+                Issue.record("Missing chip asset: \(name)")
+                continue
+            }
+            let aspect = img.size.width / img.size.height
+            #expect(
+                Self.aspectTolerance.contains(aspect),
+                "\(name) aspect \(aspect) outside \(Self.aspectTolerance) — likely oversized canvas with corner-stamped art"
+            )
+        }
+    }
+
+    @Test("Every stack_<denom>_h1 asset has near-square aspect")
+    func h1StackArtAspectStaysSquareish() {
+        for denom in Self.chipDenominations {
+            let name = "stack_\(denom)_h1"
+            guard let img = UIImage(named: name) else {
+                Issue.record("Missing stack asset: \(name)")
+                continue
+            }
+            let aspect = img.size.width / img.size.height
+            #expect(
+                Self.aspectTolerance.contains(aspect),
+                "\(name) aspect \(aspect) outside \(Self.aspectTolerance) — likely oversized canvas with corner-stamped art"
+            )
+        }
     }
 }
 

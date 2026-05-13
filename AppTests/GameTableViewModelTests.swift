@@ -378,6 +378,26 @@ struct GameTableViewModelTests {
         #expect(vm.phase == .awaitingBets)
     }
 
+    @Test("newHand clears staged Ante to zero so the bet zone shows 'Place your bets' (Session 22)")
+    func newHandClearsStagedAnte() {
+        let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
+        vm.stagedAnte = 100
+        vm.cycleTripsBet() // 5
+        vm.deal()
+        vm.checkPreFlop()
+        vm.checkPostFlop()
+        vm.betPostRiver()
+        #expect(vm.phase == .handComplete)
+
+        vm.newHand()
+
+        #expect(vm.stagedAnte == 0)
+        #expect(vm.stagedTrips == 0)
+        #expect(vm.anteBet == 0)
+        #expect(vm.tripsBet == 0)
+        #expect(vm.phase == .awaitingBets)
+    }
+
     // MARK: - REBET
 
     @Test("Fresh view model has no rebet history and cannot rebet")

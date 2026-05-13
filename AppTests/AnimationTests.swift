@@ -810,6 +810,9 @@ struct AnimationTests {
         vm.newHand()
         #expect(vm.currentDealId == dealIdBefore)
 
+        // Session 22: newHand clears stagedAnte, so re-stage before
+        // dealing again. Earlier this test relied on the bet carrying over.
+        vm.stagedAnte = 10
         vm.deal(); await drainAnimations(); vm.skipToSettled()
         #expect(vm.currentDealId == dealIdBefore + 1)
     }

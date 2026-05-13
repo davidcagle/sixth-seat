@@ -444,6 +444,10 @@ final class GameTableViewModel {
     func newHand() {
         guard !isAnimating else { return }
         dispatch(.collectAndReset)
+        // Session 22: clear Ante alongside Trips so New Hand returns to
+        // the "Place your bets" state. Rebet stays the path that carries
+        // the prior bets forward.
+        stagedAnte = 0
         stagedTrips = 0
         resetAnimationState()
     }
