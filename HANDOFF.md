@@ -19,6 +19,13 @@ Every session prompt written by Claude (in chat) for Claude Code (desktop) must 
 - If pbxproj is dirty (Xcode bookkeeping reorder), run `git restore SixthSeat.xcodeproj/project.pbxproj` before continuing
 - Verify working tree is clean: `git status` should show "nothing to commit, working tree clean"
 
+**WORKTREE PATH DISCIPLINE** (paste verbatim into every prompt that uses a worktree):
+
+- All file writes in this session use absolute paths prefixed with the worktree path, never the main checkout path.
+- Verify before the first write: `pwd` and `git rev-parse --show-toplevel` should both return the worktree path, NOT the main checkout path.
+- If a file edit lands in the main checkout instead of the worktree (caught when tests still pass against the old behavior, or when `git status` in the worktree shows no changes after an edit), STOP. Recover by `mv`-ing the changes into the worktree path before any commit, and restore the main checkout to clean state with `git checkout` / `git restore`.
+- This guard exists because Sessions 21 and 22 both surfaced the same write-to-main-checkout mistake mid-session. Both recovered cleanly, but the pattern is worth preventing.
+
 **END-OF-SESSION** (paste verbatim into every prompt):
 
 - Run all tests on both targets:
@@ -218,6 +225,15 @@ State-of-play for everything that has to happen out-of-band before the first Tes
   > `com.sixthseat.uth.chips.deepstack` ($19.99, 750,000 chips)
 
 * **Sandbox tester account (David, manual).** At least one sandbox tester under Users and Access → Sandbox → Testers is required to drive real-purchase flows against the products above on a TestFlight build. Sign out of the production Apple ID on the test device's Settings → App Store → Sandbox Account before testing; sandbox purchases against a production account will silently fail.
+
+### Asset Integration Checklist
+
+Run this on every new designer-delivered art batch BEFORE integration into `App/Assets.xcassets/`. Session 22 surfaced that the Fiverr Phase 1 delivery had two PNGs (`chip_5.png` and `stack_5_h1.png`) at `3661×1909` with the artwork stamped in the corner of a transparent canvas, while every other file in the same set came tight-cropped at `~800×740`. The dimension mismatch caused on-device renders to be ~8px specks where they should have been ~40px chips. The check below catches that class of defect at integration time, not on hardware after merge.
+
+1. **Spot-check pixel dimensions across the delivery.** Run `sips -g pixelWidth -g pixelHeight <file>` on a handful of files in each logical set (cards, chips, chip stacks, button states, popups). Within a logical set the dimensions should be in the same ballpark — order-of-magnitude differences indicate transparent padding or canvas-size export bugs that affect SwiftUI rendering when the asset is sized to a frame.
+2. **Compare against the existing asset catalog before overwriting.** `du -h <existing-imageset>/<file>.png` on a few of the current files in the same set. If the new files are dramatically larger or smaller in bytes than the ones you're replacing, eyeball them in Preview before integration.
+3. **For any outlier file:** open it in Preview, check the bounding box of visible art vs. the canvas size. If there's significant transparent padding, recrop in place to the tight bbox before integration (`sips --cropToHeightWidth <h> <w>` or a Preview manual crop). Preserves artwork pixel-for-pixel, removes the padding that breaks `.scaledToFit()` framing.
+4. **Add an in-test guard for the asset class if it's being used at a fixed frame size.** `ChipArtDimensionsTests` in `AppTests/AssetPipelineTests.swift` asserts aspect ratio is within `[0.7, 1.3]` for every chip-art imageset — catches future oversized-canvas redeliveries from re-introducing the same defect silently. Pattern is reusable for any other asset class where a wide aspect-ratio variation would break the layout.
 
 ### Follow-ups surfaced by Session 20
 
