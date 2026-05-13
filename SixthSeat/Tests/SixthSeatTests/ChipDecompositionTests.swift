@@ -23,20 +23,31 @@ struct ChipDecompositionTests {
         #expect(ChipDecomposition.bestFit(for: 200) == ChipDecomposition(denomination: 100, count: 2))
     }
 
-    @Test("Off-grid amounts approximate via the largest denomination ≤ amount")
-    func offGridApproximations() {
-        // $35 → one $25 chip (precise value comes from the dollar label)
-        #expect(ChipDecomposition.bestFit(for: 35) == ChipDecomposition(denomination: 25, count: 1))
-        // $250 → two $100 chips (50 leftover, communicated by the label)
-        #expect(ChipDecomposition.bestFit(for: 250) == ChipDecomposition(denomination: 100, count: 2))
+    @Test("Off-grid amounts fall back to the largest cleanly-dividing denomination")
+    func offGridFallsBackToCleanDivisor() {
+        // $35 → seven $5 chips (25 doesn't divide 35; falls back to 5)
+        #expect(ChipDecomposition.bestFit(for: 35) == ChipDecomposition(denomination: 5, count: 7))
+        // $250 → ten $25 chips (100 doesn't divide 250; falls back to 25)
+        #expect(ChipDecomposition.bestFit(for: 250) == ChipDecomposition(denomination: 25, count: 10))
     }
 
-    @Test("Larger amounts pick the largest available denomination")
-    func picksLargestAvailableDenomination() {
-        // $1,500 → one $1,000 chip (500 leftover)
-        #expect(ChipDecomposition.bestFit(for: 1_500) == ChipDecomposition(denomination: 1000, count: 1))
-        // $5,000 → five $1,000 chips
+    @Test("Larger amounts pick the largest cleanly-dividing denomination")
+    func picksLargestCleanDivisor() {
+        // $1,500 → three $500 chips (1000 doesn't divide 1500; 500 does)
+        #expect(ChipDecomposition.bestFit(for: 1_500) == ChipDecomposition(denomination: 500, count: 3))
+        // $5,000 → five $1,000 chips (1000 divides cleanly)
         #expect(ChipDecomposition.bestFit(for: 5_000) == ChipDecomposition(denomination: 1000, count: 5))
+    }
+
+    @Test("Common bet amounts produce visually distinct multi-chip stacks (Session 22)")
+    func multiChipDecompositionsAreVisuallyDistinct() {
+        // The point of Session 22's algorithm change: $25 and $50 must
+        // not render identically, and $75 picks $25 over a fallback to $5.
+        #expect(ChipDecomposition.bestFit(for: 50)  == ChipDecomposition(denomination: 25,  count: 2))
+        #expect(ChipDecomposition.bestFit(for: 75)  == ChipDecomposition(denomination: 25,  count: 3))
+        #expect(ChipDecomposition.bestFit(for: 125) == ChipDecomposition(denomination: 25,  count: 5))
+        #expect(ChipDecomposition.bestFit(for: 300) == ChipDecomposition(denomination: 100, count: 3))
+        #expect(ChipDecomposition.bestFit(for: 600) == ChipDecomposition(denomination: 100, count: 6))
     }
 
     @Test("Zero amount returns nil — no chip stack should render")

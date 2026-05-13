@@ -1,13 +1,14 @@
 import Foundation
 
-/// Single-stack chip-visualization decomposition for a bet amount.
+/// Chip-stack visualization for a bet amount.
 ///
-/// The V1 chip set is `$5 / $25 / $100 / $500 / $1,000`. For bet
-/// amounts that don't land cleanly on a single denomination (e.g.
-/// `$35`) the bet zone falls back to a single-stack approximation —
-/// the precise amount is communicated by the adjacent dollar label.
-/// See Session 21 prompt: "START SIMPLE — render a single chip of
-/// the largest denomination ≤ the bet amount."
+/// The V1 chip set is `$5 / $25 / $100 / $500 / $1,000`. `bestFit`
+/// picks the largest denomination that divides `amount` cleanly so
+/// the rendered stack is an exact representation, not a single-chip
+/// approximation: `$50 → (25, 2)`, not `(25, 1)`. Bets that don't
+/// land on a multiple of `$5` (which today the engine never produces)
+/// fall back to `nil` — the dollar-label adjacent to the bet zone
+/// still communicates the exact value.
 ///
 /// Lives in the engine package because the math is pure integer
 /// arithmetic that's worth asserting directly, same pattern as
@@ -24,16 +25,13 @@ public struct ChipDecomposition: Equatable, Sendable {
     /// Available chip denominations, largest first.
     public static let availableDenominations: [Int] = [1000, 500, 100, 25, 5]
 
-    /// Picks a single-stack visualization for `amount`.
-    ///
-    /// Returns `nil` when no chips should render (`amount <= 0`).
-    /// Otherwise picks the largest available denomination ≤ amount
-    /// and sets `count = amount / denomination` (integer division —
-    /// the dollar-label text on the bet zone provides the precise
-    /// value when the result is a visual approximation).
+    /// Picks the largest denomination D where `amount % D == 0` and
+    /// returns `(D, amount / D)`. Returns `nil` for `amount <= 0` or
+    /// when no available denomination divides `amount` cleanly (e.g.
+    /// `$1`, which the engine should never produce).
     public static func bestFit(for amount: Int) -> ChipDecomposition? {
         guard amount > 0 else { return nil }
-        for denom in availableDenominations where denom <= amount {
+        for denom in availableDenominations where denom <= amount && amount % denom == 0 {
             return ChipDecomposition(denomination: denom, count: amount / denom)
         }
         return nil
