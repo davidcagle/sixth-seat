@@ -42,7 +42,7 @@ struct GameTableView: View {
                 Spacer(minLength: 0)
                 errorBanner
                 actionBar
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 20)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
