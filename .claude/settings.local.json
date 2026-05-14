@@ -86,7 +86,13 @@
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project SixthSeat.xcodeproj -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17')",
       "Bash(mv .claude/scripts/generate_placeholder_assets.py tools/generate_placeholder_assets.py)",
       "Bash(rmdir .claude/scripts)",
-      "Bash(git update-index *)"
+      "Bash(git update-index *)",
+      "Bash(sips -g pixelWidth -g pixelHeight \"/Users/davidcagle/Desktop/fiverr-phase1/Vector illustrations/Table & felt/poker_felt_only.png\")",
+      "Bash(xcodebuild -scheme SixthSeat -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' test)",
+      "Bash(xcodebuild -scheme SixthSeat -destination 'platform=iOS Simulator,id=6A9A3659-43C8-4855-8604-980376BF81B7' -derivedDataPath /tmp/SixthSeat-DD-s28 build)",
+      "Bash(mkdir -p /tmp/s28-screens)",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/s28-screens/01-launch.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/s28-screens/04-game-table.png)"
     ]
   }
 }
