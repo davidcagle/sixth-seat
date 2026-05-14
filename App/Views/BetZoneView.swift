@@ -5,9 +5,10 @@ import SixthSeat
 /// stack inside when there's a wager), and the dollar amount below.
 /// Tappable — forwards the intent back via `onTap`.
 ///
-/// Chip-stack visualization (Session 21) reads
-/// `ChipDecomposition.bestFit(for: amount)` and routes through
-/// `ChipStackView`. When `amount == 0`, no chip stack renders and the
+/// Chip-stack visualization (Session 25) reads
+/// `ChipDecomposition.decompose(amount:)` and routes the chunks
+/// through `ChipStackView`, which renders single-chip art
+/// offset-stacked. When `amount == 0`, no chip stack renders and the
 /// amount label collapses to "—" inside the empty circle.
 ///
 /// `animation` drives chip-resolution motion. The whole zone — chip
@@ -85,13 +86,12 @@ struct BetZoneView: View {
                             )
                     )
 
-                if amount > 0, let chip = ChipDecomposition.bestFit(for: amount) {
-                    ChipStackView(
-                        denomination: chip.denomination,
-                        count: chip.count,
-                        diameter: circleDiameter - 8
-                    )
-                    .accessibilityIdentifier("BetZone.ChipStack.\(label)")
+                if amount > 0 {
+                    let chunks = ChipDecomposition.decompose(amount: amount)
+                    if !chunks.isEmpty {
+                        ChipStackView(chunks: chunks, chipDiameter: 40, perChipOffset: 8)
+                            .accessibilityIdentifier("BetZone.ChipStack.\(label)")
+                    }
                 }
             }
             .frame(width: circleDiameter, height: circleDiameter)

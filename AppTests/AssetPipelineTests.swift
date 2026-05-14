@@ -175,7 +175,7 @@ struct CardViewRenderingTests {
 }
 
 @MainActor
-@Suite("ChipView + ChipStackView rendering (Session 17)")
+@Suite("ChipView + ChipStackView rendering (Session 25 offset-stacked single-chip art)")
 struct ChipViewRenderingTests {
 
     @Test("ChipView requests the asset for its denomination")
@@ -189,66 +189,110 @@ struct ChipViewRenderingTests {
         #expect(assets.lastChipName == "chip_100")
     }
 
-    @Test("ChipStackView routes count through StackHeight.bestFit")
-    func stackViewPicksBestFit() {
+    @Test("ChipStackView renders single-chip art N times for a single-denomination chunk")
+    func singleDenominationChunkRendersNChips() {
         let assets = InMemoryAssetService()
+        // $75 → three $25 chips
+        let chunks = ChipDecomposition.decompose(amount: 75)
         renderToImage(
-            ChipStackView(denomination: 25, count: 7)
+            ChipStackView(chunks: chunks)
                 .environment(\.assets, assets)
         )
-        // 7 chips → h5 variant (rounded down)
-        #expect(assets.stackRequests == [.init(denomination: 25, height: .h5)])
-        #expect(assets.lastStackName == "stack_25_h5")
+        expectChipRequestPattern(assets, [25, 25, 25])
+        #expect(assets.stackRequests.isEmpty,
+                "Session 25: bet-zone chip stacks render single-chip art, not pre-rendered stack imagesets")
     }
 
-    @Test("ChipStackView clamps a count above 20 to the h20 variant")
-    func stackViewClampsAtMax() {
+    @Test("ChipStackView renders multi-denomination chunks largest-first (bottom of stack)")
+    func multiDenominationChunksRenderLargestFirst() {
         let assets = InMemoryAssetService()
+        // $125 → ($100, 1) + ($25, 1). Largest denomination first means
+        // the $100 chip is requested before the $25 — bottom-of-stack
+        // rendering order, with the $25 chip stacked on top.
+        let chunks = ChipDecomposition.decompose(amount: 125)
         renderToImage(
-            ChipStackView(denomination: 1000, count: 200)
+            ChipStackView(chunks: chunks)
                 .environment(\.assets, assets)
         )
-        #expect(assets.stackRequests == [.init(denomination: 1000, height: .h20)])
+        expectChipRequestPattern(assets, [100, 25])
+        #expect(assets.stackRequests.isEmpty)
+    }
+
+    @Test("ChipStackView with empty chunks requests no chip art")
+    func emptyChunksRequestNothing() {
+        let assets = InMemoryAssetService()
+        renderToImage(
+            ChipStackView(chunks: [])
+                .environment(\.assets, assets)
+        )
+        #expect(assets.chipRequests.isEmpty)
+        #expect(assets.stackRequests.isEmpty)
     }
 }
 
 @MainActor
-@Suite("BetZoneView chip-stack rendering (Session 21)")
+@Suite("BetZoneView chip-stack rendering (Session 25 offset-stacked single-chip art)")
 struct BetZoneViewChipStackTests {
 
-    @Test("Non-zero bet renders a chip stack via ChipDecomposition.bestFit")
-    func nonZeroBetRendersChipStack() {
-        let assets = InMemoryAssetService()
-        // $10 → ChipDecomposition picks ($5, count: 2); StackHeight.bestFit(2) = h1.
-        renderToImage(
-            BetZoneView(label: "ANTE", amount: 10)
-                .environment(\.assets, assets)
-        )
-        #expect(assets.stackRequests == [.init(denomination: 5, height: .h1)])
-        #expect(assets.lastStackName == "stack_5_h1")
-    }
-
-    @Test("Zero bet renders no chip stack — the empty-circle path stays")
+    @Test("Zero bet renders no chip art — the empty-circle path stays")
     func zeroBetRendersNothing() {
         let assets = InMemoryAssetService()
         renderToImage(
             BetZoneView(label: "TRIPS", amount: 0)
                 .environment(\.assets, assets)
         )
-        #expect(assets.stackRequests.isEmpty)
-        #expect(assets.lastStackName == nil)
+        #expect(assets.chipRequests.isEmpty)
+        #expect(assets.stackRequests.isEmpty,
+                "Session 25: bet-zone no longer routes through stack imagesets")
     }
 
-    @Test("Higher-denomination bets pick the largest chip ≤ amount")
-    func picksLargestDenomination() {
+    @Test("Single-denomination bet renders N copies of the single-chip art")
+    func singleDenominationBetRendersOffsetStack() {
         let assets = InMemoryAssetService()
-        // $100 → ($100, 1); StackHeight.bestFit(1) = h1.
+        // $10 → ($5, 2). Two $5 chip-art requests, no stack-art requests.
+        renderToImage(
+            BetZoneView(label: "ANTE", amount: 10)
+                .environment(\.assets, assets)
+        )
+        expectChipRequestPattern(assets, [5, 5])
+        #expect(assets.stackRequests.isEmpty)
+    }
+
+    @Test("Single-chip bet at a higher denomination renders that one chip")
+    func singleHigherDenominationChipRequest() {
+        let assets = InMemoryAssetService()
+        // $100 → one $100 chip.
         renderToImage(
             BetZoneView(label: "PLAY", amount: 100)
                 .environment(\.assets, assets)
         )
-        #expect(assets.stackRequests == [.init(denomination: 100, height: .h1)])
-        #expect(assets.lastStackName == "stack_100_h1")
+        expectChipRequestPattern(assets, [100])
+        #expect(assets.stackRequests.isEmpty)
+    }
+
+    @Test("Multi-denomination bet renders chunks largest-first (bottom of the stack)")
+    func multiDenominationBetRendersLargestFirst() {
+        let assets = InMemoryAssetService()
+        // $125 → ($100, 1) + ($25, 1). $100 chip art is requested before
+        // $25 — bottom-of-stack rendering order.
+        renderToImage(
+            BetZoneView(label: "PLAY", amount: 125)
+                .environment(\.assets, assets)
+        )
+        expectChipRequestPattern(assets, [100, 25])
+    }
+
+    @Test("Mixed bet with all five denominations renders chunks in descending order")
+    func mixedBetWithAllDenominations() {
+        let assets = InMemoryAssetService()
+        // $1235 → ($1000, 1) + ($100, 2) + ($25, 1) + ($5, 2).
+        // Worst-case-shape V1 amount: pins the chunk-order invariant
+        // end-to-end through the view.
+        renderToImage(
+            BetZoneView(label: "PLAY", amount: 1235)
+                .environment(\.assets, assets)
+        )
+        expectChipRequestPattern(assets, [1000, 100, 100, 25, 5, 5])
     }
 }
 
@@ -307,4 +351,36 @@ private func renderToImage<V: View>(_ view: V) {
     // and triggers our environment-backed AssetService calls.
     let renderer = ImageRenderer(content: view)
     _ = renderer.cgImage
+}
+
+/// Asserts the chip-request log matches `expected`, tolerant of SwiftUI's
+/// multi-pass ForEach evaluation under `ImageRenderer`. Session 25's
+/// `ChipStackView` uses a `ForEach` to lay out N single-chip Images, and
+/// the renderer evaluates the body more than once during the measure/draw
+/// passes — so the recorded request log is the expected sequence repeated
+/// an integer number of times. Asserting on the first cycle plus the
+/// length-is-a-multiple invariant pins the rendering contract without
+/// coupling to SwiftUI's internal pass count.
+@MainActor
+private func expectChipRequestPattern(
+    _ assets: InMemoryAssetService,
+    _ expected: [Int],
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    let log = assets.chipRequests
+    if expected.isEmpty {
+        #expect(log.isEmpty, sourceLocation: sourceLocation)
+        return
+    }
+    #expect(
+        !log.isEmpty && log.count % expected.count == 0,
+        "request log length \(log.count) not a positive multiple of pattern length \(expected.count)",
+        sourceLocation: sourceLocation
+    )
+    let firstCycle = Array(log.prefix(expected.count))
+    #expect(
+        firstCycle == expected,
+        "first \(expected.count) requests \(firstCycle) ≠ expected \(expected); full log: \(log)",
+        sourceLocation: sourceLocation
+    )
 }
