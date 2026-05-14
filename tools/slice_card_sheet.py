@@ -23,13 +23,21 @@ Sprite sheet layout (verified empirically):
   - Even cols = lower ranks; odd cols = higher ranks
   - One KNOWN BUG in source: 2 of Diamonds is missing (duplicated A♦ in its slot)
 
-Bounds derivation (Session 23):
-  Per-card crop boxes are derived from the sheet at runtime by scanning the
-  alpha channel for opaque column/row runs, then fitting a uniform spacing
-  model (least-squares) over their centers. All output cards share identical
-  pixel dimensions; gaps between cards are uniform. Pass --debug to print the
-  derived card_width / card_height / column_gap / row_gap and the per-bound
-  residual error vs the pre-Session-23 hardcoded values.
+Bounds derivation (Session 23 + 24):
+  Session 23 derived uniform-pitch grid bounds from the sheet by scanning the
+  alpha channel for opaque column/row runs and fitting a uniform spacing model.
+  Session 24 keeps that uniform grid only as a *search region* — per-card tight
+  bounding boxes are then detected inside each grid cell's margin-expanded
+  region via PIL's alpha-based getbbox(). Each tight crop is finally padded to
+  a single uniform output canvas (the max tight-bbox width/height across all
+  cards), with the art centered and transparent margins added.
+
+  Result: every output PNG is dimensionally identical AND each contains the
+  full card art with consistent transparent padding regardless of small
+  positional variances in the source sheet's grid cells.
+
+  Pass --debug to print derived grid bounds, per-card detected bboxes, and
+  per-card deltas vs the uniform nominal.
 
 Run from anywhere:
   python3 slice_card_sheet.py \\
@@ -47,6 +55,7 @@ import os
 import sys
 from pathlib import Path
 from statistics import median
+from typing import Optional
 
 try:
     from PIL import Image
@@ -319,6 +328,76 @@ def derive_uniform_bounds(
     return col_bounds, row_bounds, debug
 
 
+# --- Session 24: per-card tight-bbox detection + uniform-canvas padding ---
+
+# Margin (px) added around each uniform grid cell when searching for the card's
+# tight bbox. Kept small because the inter-card gap on the source sheet is
+# only ~1-2 px (row 6/7 even fused into a single alpha run in Session 23's
+# scan), so any margin > the inter-card gap would let neighboring card art
+# bleed into the search region and inflate the detected bbox. With margin=0
+# the search region is exactly the Session-23 uniform cell, and PIL's
+# getbbox() returns the card's tight opaque extent within that cell — which
+# is precisely what we want: the per-card shift within identical-size cells
+# is captured by the bbox center, not by its size.
+BBOX_SEARCH_MARGIN = 0
+
+# Sanity threshold: a detected bbox whose width or height differs from the
+# uniform-pitch card_width/card_height by more than this fraction is treated
+# as a likely detection failure and aborts the run.
+BBOX_SANITY_FRACTION = 0.5
+
+
+def detect_card_bbox(
+    sheet: Image.Image,
+    row_idx: int,
+    col_idx: int,
+    col_bounds: list[tuple[int, int]],
+    row_bounds: list[tuple[int, int]],
+    margin: int = BBOX_SEARCH_MARGIN,
+) -> Optional[tuple[int, int, int, int]]:
+    """Return the tight (left, top, right, bottom) bbox in sheet coordinates
+    of the opaque card art at uniform grid cell (row_idx, col_idx) (1-indexed),
+    or None if the cell is empty.
+
+    The search is confined to a region expanded by `margin` on all sides of
+    the uniform grid cell, so neighboring cards can't contaminate the bbox.
+    """
+    cs, ce = col_bounds[col_idx - 1]
+    rs, re = row_bounds[row_idx - 1]
+    sheet_w, sheet_h = sheet.size
+    search_x0 = max(0, cs - margin)
+    search_y0 = max(0, rs - margin)
+    search_x1 = min(sheet_w, ce + margin)
+    search_y1 = min(sheet_h, re + margin)
+    region = sheet.crop((search_x0, search_y0, search_x1, search_y1))
+    if region.mode != "RGBA":
+        region = region.convert("RGBA")
+    alpha = region.split()[-1]
+    bbox = alpha.getbbox()
+    if bbox is None:
+        return None
+    bx0, by0, bx1, by1 = bbox
+    return (
+        search_x0 + bx0,
+        search_y0 + by0,
+        search_x0 + bx1,
+        search_y0 + by1,
+    )
+
+
+def pad_to_canvas(tight_crop: Image.Image, target_w: int, target_h: int) -> Image.Image:
+    """Return a (target_w, target_h) RGBA image with `tight_crop` centered on
+    a fully transparent background."""
+    if tight_crop.mode != "RGBA":
+        tight_crop = tight_crop.convert("RGBA")
+    canvas = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+    cw, ch = tight_crop.size
+    paste_x = (target_w - cw) // 2
+    paste_y = (target_h - ch) // 2
+    canvas.paste(tight_crop, (paste_x, paste_y), tight_crop)
+    return canvas
+
+
 def _print_debug(col_bounds, row_bounds, info):
     """Print derived bounds and residual error vs LEGACY_*_BOUNDS."""
     print()
@@ -371,19 +450,102 @@ def slice_sheet(sheet_path: Path, back_path: Path, output_root: Path, debug: boo
         return 1
 
     sheet = Image.open(sheet_path)
+    if sheet.mode != "RGBA":
+        sheet = sheet.convert("RGBA")
     print(f"Loaded sprite sheet: {sheet.size}")
 
     col_bounds, row_bounds, debug_info = derive_uniform_bounds(sheet)
     if debug:
         _print_debug(col_bounds, row_bounds, debug_info)
 
+    nominal_w = debug_info["card_width"]
+    nominal_h = debug_info["card_height"]
+
+    # --- Pass 1: detect per-card tight bboxes; sanity-check; gather sizes ---
+    bboxes: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+    sanity_failures: list[str] = []
+    for (row, col), (suit, rank) in sorted(LAYOUT.items()):
+        bbox = detect_card_bbox(sheet, row, col, col_bounds, row_bounds)
+        if bbox is None:
+            sanity_failures.append(
+                f"card_{suit}_{rank} @ grid({row},{col}): "
+                f"NO opaque pixels in search region (empty cell?)"
+            )
+            continue
+        bx0, by0, bx1, by1 = bbox
+        bw = bx1 - bx0
+        bh = by1 - by0
+        # Sanity: bbox dims must be within BBOX_SANITY_FRACTION of nominal
+        dw = abs(bw - nominal_w) / float(nominal_w)
+        dh = abs(bh - nominal_h) / float(nominal_h)
+        if dw > BBOX_SANITY_FRACTION or dh > BBOX_SANITY_FRACTION:
+            sanity_failures.append(
+                f"card_{suit}_{rank} @ grid({row},{col}): "
+                f"bbox {bw}x{bh} differs from nominal {nominal_w}x{nominal_h} "
+                f"by ({dw*100:.1f}%, {dh*100:.1f}%)"
+            )
+        bboxes[(row, col)] = bbox
+
+    if sanity_failures:
+        print(file=sys.stderr)
+        print("=== BBOX SANITY FAILURE — aborting before any writes ===", file=sys.stderr)
+        for msg in sanity_failures:
+            print(f"  {msg}", file=sys.stderr)
+        return 2
+
+    # Target canvas dims = max bbox width/height across all detected cards.
+    max_bw = max(bx1 - bx0 for (bx0, _by0, bx1, _by1) in bboxes.values())
+    max_bh = max(by1 - by0 for (_bx0, by0, _bx1, by1) in bboxes.values())
+    target_w = max_bw
+    target_h = max_bh
+
+    # bbox stats for debug + end-of-session report
+    widths = [bx1 - bx0 for (bx0, _by0, bx1, _by1) in bboxes.values()]
+    heights = [by1 - by0 for (_bx0, by0, _bx1, by1) in bboxes.values()]
+    off_grid_count = 0  # bboxes whose center differs from uniform nominal by > 5 px
+    for (row, col), (bx0, by0, bx1, by1) in bboxes.items():
+        cs, ce = col_bounds[col - 1]
+        rs, re = row_bounds[row - 1]
+        nominal_cx = (cs + ce - 1) / 2.0
+        nominal_cy = (rs + re - 1) / 2.0
+        bb_cx = (bx0 + bx1 - 1) / 2.0
+        bb_cy = (by0 + by1 - 1) / 2.0
+        if abs(bb_cx - nominal_cx) > 5 or abs(bb_cy - nominal_cy) > 5:
+            off_grid_count += 1
+
+    if debug:
+        print("=== PER-CARD BBOX DETECTION (--debug) ===")
+        print(f"target canvas    = {target_w} x {target_h}  (max of all detected bboxes)")
+        print(f"bbox width  range= {min(widths)} .. {max(widths)}  (avg {sum(widths)/len(widths):.2f})")
+        print(f"bbox height range= {min(heights)} .. {max(heights)}  (avg {sum(heights)/len(heights):.2f})")
+        print(f"cards w/ center >5 px from uniform nominal: {off_grid_count} / {len(bboxes)}")
+        print()
+        print(f"{'card':<22} {'grid':<7} {'bbox (l,t,r,b)':<28} {'w':>4} {'h':>4} {'dx':>5} {'dy':>5}")
+        for (row, col), (suit, rank) in sorted(LAYOUT.items()):
+            if (row, col) not in bboxes:
+                continue
+            bx0, by0, bx1, by1 = bboxes[(row, col)]
+            bw = bx1 - bx0
+            bh = by1 - by0
+            cs, ce = col_bounds[col - 1]
+            rs, re = row_bounds[row - 1]
+            dx = ((bx0 + bx1 - 1) / 2.0) - ((cs + ce - 1) / 2.0)
+            dy = ((by0 + by1 - 1) / 2.0) - ((rs + re - 1) / 2.0)
+            label = f"card_{suit}_{rank}"
+            print(f"{label:<22} ({row},{col})   ({bx0:>4},{by0:>4},{bx1:>4},{by1:>4})  "
+                  f"{bw:>4} {bh:>4} {dx:+5.1f} {dy:+5.1f}")
+        print("=========================================")
+        print()
+
+    # --- Pass 2: tight-crop, pad to uniform canvas, save ---
     successes = 0
     skipped_imagesets = []
-
     for (row, col), (suit, rank) in sorted(LAYOUT.items()):
-        rs, re = row_bounds[row - 1]
-        cs, ce = col_bounds[col - 1]
-        cell = sheet.crop((cs, rs, ce, re))
+        bbox = bboxes.get((row, col))
+        if bbox is None:
+            continue  # already reported / impossible after sanity gate
+        tight = sheet.crop(bbox)
+        padded = pad_to_canvas(tight, target_w, target_h)
 
         filename = f"card_{suit}_{rank}.png"
         imageset_dir = output_root / f"card_{suit}_{rank}.imageset"
@@ -393,7 +555,7 @@ def slice_sheet(sheet_path: Path, back_path: Path, output_root: Path, debug: boo
             continue
 
         out_path = imageset_dir / filename
-        cell.save(out_path, "PNG", optimize=True)
+        padded.save(out_path, "PNG", optimize=True)
         successes += 1
         print(f"  wrote {imageset_dir.name}/{filename}")
 
