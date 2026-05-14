@@ -10,6 +10,9 @@ struct GameTableView: View {
     /// the navigation path. `nil` in previews and unit tests.
     var onVisitChipShop: (() -> Void)? = nil
 
+    // Fallback fill for areas the table-felt art doesn't cover after
+    // aspect-fill scaling — matches the felt's dominant green so the
+    // seams disappear on devices wider than the 786×1024 source.
     private let feltColor = Color(red: 0.1, green: 0.4, blue: 0.2)
 
     // Card sizing — Session 21 uniformly scaled hole + community slots
@@ -23,7 +26,12 @@ struct GameTableView: View {
 
     var body: some View {
         ZStack {
-            feltColor.ignoresSafeArea()
+            feltColor
+                .ignoresSafeArea()
+            Image("table_felt")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
 
             VStack(spacing: 14) {
                 statusBar
