@@ -1,19 +1,10 @@
 import Foundation
 
-/// Chip-stack visualization for a bet amount.
-///
-/// The V1 chip set is `$5 / $25 / $100 / $500 / $1,000`. `bestFit`
-/// picks the largest denomination that divides `amount` cleanly so
-/// the rendered stack is an exact representation, not a single-chip
-/// approximation: `$50 → (25, 2)`, not `(25, 1)`. Bets that don't
-/// land on a multiple of `$5` (which today the engine never produces)
-/// fall back to `nil` — the dollar-label adjacent to the bet zone
-/// still communicates the exact value.
-///
-/// Lives in the engine package because the math is pure integer
-/// arithmetic that's worth asserting directly, same pattern as
-/// `StackHeight.bestFit(for:)` (Session 17).
-public struct ChipDecomposition: Equatable, Sendable {
+/// One contiguous run of chips of a single denomination inside a bet-zone
+/// chip stack. `ChipDecomposition.decompose(amount:)` returns an ordered
+/// array of these (largest denomination first), which the view layer
+/// renders as offset-stacked single-chip art.
+public struct ChipChunk: Equatable, Sendable {
     public let denomination: Int
     public let count: Int
 
@@ -21,19 +12,47 @@ public struct ChipDecomposition: Equatable, Sendable {
         self.denomination = denomination
         self.count = count
     }
+}
 
-    /// Available chip denominations, largest first.
+/// Bet-zone chip-stack decomposition.
+///
+/// The V1 chip set is `$5 / $25 / $100 / $500 / $1,000`. `decompose`
+/// runs a greedy largest-first pass over those denominations, returning
+/// chunks ordered from largest to smallest. The view layer renders each
+/// chunk as N copies of the single-chip art, offset-stacked, so a
+/// `$125` bet becomes one `$100` chip on the bottom with one `$25`
+/// chip stacked on top — matching the casino-felt convention of mixed
+/// chips physically stacked.
+///
+/// Supersedes the Session 21/22 `bestFit(for:)` contract, which returned
+/// a single denomination/count pair and could not express mixed-chip
+/// bets (`$125 → ($25, 5)` instead of `[($100, 1), ($25, 1)]`).
+///
+/// Lives in the engine package because the math is pure integer
+/// arithmetic that's worth asserting directly, same pattern as
+/// `StackHeight.bestFit(for:)` (Session 17).
+public enum ChipDecomposition {
+
+    /// Available chip denominations, largest first. Matches the V1 chip
+    /// set and the order the greedy decomposition walks.
     public static let availableDenominations: [Int] = [1000, 500, 100, 25, 5]
 
-    /// Picks the largest denomination D where `amount % D == 0` and
-    /// returns `(D, amount / D)`. Returns `nil` for `amount <= 0` or
-    /// when no available denomination divides `amount` cleanly (e.g.
-    /// `$1`, which the engine should never produce).
-    public static func bestFit(for amount: Int) -> ChipDecomposition? {
-        guard amount > 0 else { return nil }
-        for denom in availableDenominations where denom <= amount && amount % denom == 0 {
-            return ChipDecomposition(denomination: denom, count: amount / denom)
+    /// Greedy largest-denomination-first decomposition of `amount` into
+    /// chunks of the available denominations. Returns chunks ordered
+    /// from largest denomination to smallest. Returns an empty array
+    /// for `amount <= 0`. All V1 chip cycles produce amounts that
+    /// decompose cleanly into the `$5/$25/$100/$500/$1000` set.
+    public static func decompose(amount: Int) -> [ChipChunk] {
+        guard amount > 0 else { return [] }
+        var remaining = amount
+        var chunks: [ChipChunk] = []
+        for denom in availableDenominations {
+            let count = remaining / denom
+            if count > 0 {
+                chunks.append(ChipChunk(denomination: denom, count: count))
+                remaining -= denom * count
+            }
         }
-        return nil
+        return chunks
     }
 }
