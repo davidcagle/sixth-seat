@@ -42,6 +42,7 @@ struct GameTableView: View {
                 Spacer(minLength: 0)
                 errorBanner
                 actionBar
+                    .padding(.horizontal, 8)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -124,6 +125,9 @@ struct GameTableView: View {
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
             }
+            // Leading inset clears the system NavigationStack back-arrow
+            // (~44pt) so the "B" of BALANCE isn't occluded.
+            .padding(.leading, 40)
             Spacer()
             Text(viewModel.phaseLabel)
                 .font(.system(size: 13, weight: .semibold))
@@ -131,6 +135,7 @@ struct GameTableView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Color.black.opacity(0.35)))
+                .padding(.trailing, 8)
         }
     }
 
