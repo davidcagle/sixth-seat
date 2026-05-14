@@ -23,11 +23,20 @@ Sprite sheet layout (verified empirically):
   - Even cols = lower ranks; odd cols = higher ranks
   - One KNOWN BUG in source: 2 of Diamonds is missing (duplicated A♦ in its slot)
 
+Bounds derivation (Session 23):
+  Per-card crop boxes are derived from the sheet at runtime by scanning the
+  alpha channel for opaque column/row runs, then fitting a uniform spacing
+  model (least-squares) over their centers. All output cards share identical
+  pixel dimensions; gaps between cards are uniform. Pass --debug to print the
+  derived card_width / card_height / column_gap / row_gap and the per-bound
+  residual error vs the pre-Session-23 hardcoded values.
+
 Run from anywhere:
   python3 slice_card_sheet.py \\
     --input "/path/to/poker cards@4x 1.png" \\
     --back  "/path/to/Card back.png" \\
-    --output "/path/to/repo/App/Assets.xcassets/Cards"
+    --output "/path/to/repo/App/Assets.xcassets/Cards" \\
+    [--debug]
 
 The output directory must exist (Session 17 created the empty imagesets).
 The script writes each PNG INSIDE its corresponding .imageset subfolder.
@@ -37,6 +46,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from statistics import median
 
 try:
     from PIL import Image
@@ -45,12 +55,17 @@ except ImportError:
     sys.exit(1)
 
 
-# --- Sprite-sheet grid coordinates (verified empirically from delivered file) ---
-COL_BOUNDS = [
+# Grid dimensions (8 columns × 7 rows, see LAYOUT below).
+GRID_COLS = 8
+GRID_ROWS = 7
+
+# Pre-Session-23 hardcoded bounds — kept only for --debug residual comparison.
+# The slicer no longer uses these at runtime; bounds are derived from alpha.
+LEGACY_COL_BOUNDS = [
     (1, 123), (127, 250), (254, 376), (382, 504),
     (509, 631), (635, 757), (760, 883), (886, 1008),
 ]
-ROW_BOUNDS = [
+LEGACY_ROW_BOUNDS = [
     (2, 173), (178, 349), (354, 525), (530, 701),
     (706, 877), (881, 1053), (1058, 1229),
 ]
@@ -173,7 +188,176 @@ CARDS_IN_LAYOUT = set(LAYOUT.values())
 MISSING_CARDS = EXPECTED_CARDS - CARDS_IN_LAYOUT
 
 
-def slice_sheet(sheet_path: Path, back_path: Path, output_root: Path) -> int:
+def _detect_opaque_flags(sheet: Image.Image) -> tuple[list[bool], list[bool]]:
+    """Return (col_has_opaque, row_has_opaque) flag lists.
+
+    A column or row is flagged True if it contains any pixel with alpha > 0.
+    """
+    rgba = sheet.convert("RGBA")
+    w, h = rgba.size
+    px = rgba.load()
+    col_flag = [False] * w
+    row_flag = [False] * h
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] > 0:
+                col_flag[x] = True
+                row_flag[y] = True
+    return col_flag, row_flag
+
+
+def _runs(flags: list[bool]) -> list[tuple[int, int]]:
+    """Return inclusive (start, end) runs of consecutive True values."""
+    out = []
+    in_run = False
+    start = 0
+    for i, v in enumerate(flags):
+        if v and not in_run:
+            in_run = True
+            start = i
+        elif not v and in_run:
+            in_run = False
+            out.append((start, i - 1))
+    if in_run:
+        out.append((start, len(flags) - 1))
+    return out
+
+
+def _fit_axis_bounds(
+    detected_runs: list[tuple[int, int]],
+    expected_n: int,
+    label: str,
+) -> tuple[list[tuple[int, int]], int, float, float, float]:
+    """Fit a uniform spacing model over detected opaque runs.
+
+    Some runs may be "fused" (two adjacent cards with no transparent gap between
+    them at the alpha-channel level). Fused runs are detected as having width
+    significantly larger than the median single-run width; their centers are
+    not used for the fit, but their grid positions are still counted so the fit
+    indices stay aligned.
+
+    Returns (bounds, card_size, gap_size, first_center, pitch) where:
+      - bounds is a list of expected_n (left, right) tuples for PIL.Image.crop
+        (right exclusive)
+      - card_size is the uniform width/height (px, integer)
+      - gap_size = pitch - card_size (px, float — may be fractional)
+      - first_center is the fitted center of grid position 0 (px, float)
+      - pitch is the fitted spacing between adjacent card centers (px, float)
+    """
+    widths = [e - s + 1 for s, e in detected_runs]
+    if not widths:
+        raise RuntimeError(f"no opaque {label} runs detected — sheet alpha empty?")
+    med_w = median(widths)
+    # Identify fused runs by inflated width.
+    clean_pairs: list[tuple[int, float]] = []
+    grid_idx = 0
+    single_widths: list[int] = []
+    for s, e in detected_runs:
+        run_w = e - s + 1
+        n_cards = max(1, round(run_w / med_w))
+        if n_cards == 1:
+            clean_pairs.append((grid_idx, (s + e) / 2.0))
+            single_widths.append(run_w)
+            grid_idx += 1
+        else:
+            grid_idx += n_cards  # skip past fused cards without using their centers
+    if grid_idx != expected_n:
+        raise RuntimeError(
+            f"{label}: detected {grid_idx} card slots (with fused-split), expected {expected_n}. "
+            f"Runs: {detected_runs}"
+        )
+    if len(clean_pairs) < 2:
+        raise RuntimeError(f"{label}: too few clean runs for fit ({len(clean_pairs)})")
+    # Linear least-squares: center = first_center + grid_idx * pitch
+    n = len(clean_pairs)
+    xs = [p[0] for p in clean_pairs]
+    ys = [p[1] for p in clean_pairs]
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    num = sum((xs[i] - mx) * (ys[i] - my) for i in range(n))
+    den = sum((xs[i] - mx) ** 2 for i in range(n))
+    if den == 0:
+        raise RuntimeError(f"{label}: degenerate fit (all clean centers at one index)")
+    pitch = num / den
+    first_center = my - pitch * mx
+    card_size = int(round(median(single_widths)))
+    gap_size = pitch - card_size
+    bounds: list[tuple[int, int]] = []
+    for i in range(expected_n):
+        ci = first_center + i * pitch
+        lo = int(round(ci - card_size / 2.0))
+        hi = lo + card_size
+        bounds.append((lo, hi))
+    return bounds, card_size, gap_size, first_center, pitch
+
+
+def derive_uniform_bounds(
+    sheet: Image.Image,
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], dict]:
+    """Derive uniform COL_BOUNDS and ROW_BOUNDS for the given sheet.
+
+    Returns (col_bounds, row_bounds, debug_info_dict).
+    """
+    col_flag, row_flag = _detect_opaque_flags(sheet)
+    col_runs = _runs(col_flag)
+    row_runs = _runs(row_flag)
+    col_bounds, card_w, gap_w, c0_c, pitch_c = _fit_axis_bounds(col_runs, GRID_COLS, "col")
+    row_bounds, card_h, gap_h, c0_r, pitch_r = _fit_axis_bounds(row_runs, GRID_ROWS, "row")
+    debug = {
+        "sheet_size": sheet.size,
+        "col_runs_detected": col_runs,
+        "row_runs_detected": row_runs,
+        "card_width": card_w,
+        "card_height": card_h,
+        "column_gap": gap_w,
+        "row_gap": gap_h,
+        "col_pitch": pitch_c,
+        "row_pitch": pitch_r,
+        "col_first_center": c0_c,
+        "row_first_center": c0_r,
+    }
+    return col_bounds, row_bounds, debug
+
+
+def _print_debug(col_bounds, row_bounds, info):
+    """Print derived bounds and residual error vs LEGACY_*_BOUNDS."""
+    print()
+    print("=== DERIVED BOUNDS (--debug) ===")
+    print(f"sheet_size       = {info['sheet_size']}")
+    print(f"col_runs detected= {info['col_runs_detected']}")
+    print(f"row_runs detected= {info['row_runs_detected']}")
+    print(f"card_width       = {info['card_width']} px")
+    print(f"card_height      = {info['card_height']} px")
+    print(f"column_gap       = {info['column_gap']:+.3f} px (pitch={info['col_pitch']:.3f})")
+    print(f"row_gap          = {info['row_gap']:+.3f} px (pitch={info['row_pitch']:.3f})")
+    print(f"col_first_center = {info['col_first_center']:.3f}")
+    print(f"row_first_center = {info['row_first_center']:.3f}")
+
+    def half_open_center(b):
+        # PIL crop is half-open: (left, right_exclusive). Pixel center of the
+        # cropped span at exclusive bound is (left + right - 1) / 2.
+        return (b[0] + b[1] - 1) / 2.0
+
+    print()
+    print("Residual error vs LEGACY_COL_BOUNDS (new center minus old center):")
+    for i in range(GRID_COLS):
+        nc = half_open_center(col_bounds[i])
+        oc = half_open_center(LEGACY_COL_BOUNDS[i])
+        print(f"  col{i+1}: new=({col_bounds[i][0]:>4},{col_bounds[i][1]:>4}) "
+              f"center={nc:7.2f}  legacy=({LEGACY_COL_BOUNDS[i][0]:>4},{LEGACY_COL_BOUNDS[i][1]:>4}) "
+              f"center={oc:7.2f}  diff={nc-oc:+.2f}")
+    print("Residual error vs LEGACY_ROW_BOUNDS:")
+    for i in range(GRID_ROWS):
+        nc = half_open_center(row_bounds[i])
+        oc = half_open_center(LEGACY_ROW_BOUNDS[i])
+        print(f"  row{i+1}: new=({row_bounds[i][0]:>4},{row_bounds[i][1]:>4}) "
+              f"center={nc:7.2f}  legacy=({LEGACY_ROW_BOUNDS[i][0]:>4},{LEGACY_ROW_BOUNDS[i][1]:>4}) "
+              f"center={oc:7.2f}  diff={nc-oc:+.2f}")
+    print("================================")
+    print()
+
+
+def slice_sheet(sheet_path: Path, back_path: Path, output_root: Path, debug: bool = False) -> int:
     """Slice the sprite sheet into individual card files. Returns exit code."""
     if not sheet_path.exists():
         print(f"ERROR: sprite sheet not found: {sheet_path}", file=sys.stderr)
@@ -189,12 +373,16 @@ def slice_sheet(sheet_path: Path, back_path: Path, output_root: Path) -> int:
     sheet = Image.open(sheet_path)
     print(f"Loaded sprite sheet: {sheet.size}")
 
+    col_bounds, row_bounds, debug_info = derive_uniform_bounds(sheet)
+    if debug:
+        _print_debug(col_bounds, row_bounds, debug_info)
+
     successes = 0
     skipped_imagesets = []
 
     for (row, col), (suit, rank) in sorted(LAYOUT.items()):
-        rs, re = ROW_BOUNDS[row - 1]
-        cs, ce = COL_BOUNDS[col - 1]
+        rs, re = row_bounds[row - 1]
+        cs, ce = col_bounds[col - 1]
         cell = sheet.crop((cs, rs, ce, re))
 
         filename = f"card_{suit}_{rank}.png"
@@ -247,8 +435,10 @@ def main():
     p.add_argument("--input", required=True, type=Path, help="Path to poker cards@4x 1.png")
     p.add_argument("--back", required=True, type=Path, help="Path to Card back.png")
     p.add_argument("--output", required=True, type=Path, help="Path to App/Assets.xcassets/Cards")
+    p.add_argument("--debug", action="store_true",
+                   help="Print derived card_width/card_height/gaps and residual error vs legacy bounds")
     args = p.parse_args()
-    sys.exit(slice_sheet(args.input, args.back, args.output))
+    sys.exit(slice_sheet(args.input, args.back, args.output, debug=args.debug))
 
 
 if __name__ == "__main__":
