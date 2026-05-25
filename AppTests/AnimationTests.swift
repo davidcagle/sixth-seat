@@ -682,6 +682,43 @@ struct AnimationTests {
         #expect(vm.displayedBalance == vm.chipBalance)
     }
 
+    @Test("Session 30: displayedBalance freezes at pre-resolution value until dealer-reveal choreography lands")
+    func displayedBalanceWaitsForResolutionAnimation() async {
+        // Pins the Build 2 fix: a hand-resolving dispatch (betPostRiver here,
+        // analogous for fold / betPreFlop / betPostFlop) used to leak the
+        // post-resolution balance into the BALANCE label synchronously,
+        // because `syncFromGame` saw `isAnimating == false` (runAnimation
+        // hadn't bumped the token yet). The fix gates the syncFromGame
+        // displayedBalance write on `!landedOnHandComplete`, so the value
+        // freezes until `animateChipResolution`'s finalizer lands it at
+        // the end of the chip-slide. This regression test would fail
+        // under the pre-fix code: displayedBalance would already equal
+        // chipBalance synchronously after `vm.betPostRiver()`.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        // Snapshot what the BALANCE label currently shows.
+        let displayedBeforeResolution = vm.displayedBalance
+        // ImmediateAnimationClock + non-bypass: the dispatch runs sync,
+        // the animation Task is spawned but its body hasn't been awaited
+        // yet on this frame.
+        vm.betPostRiver()
+
+        #expect(vm.phase == .handComplete)
+        // Engine balance has moved (Play bet placed, resolution applied).
+        // The BALANCE label must NOT reflect that yet — dealer cards
+        // are still face-down.
+        #expect(vm.displayedBalance == displayedBeforeResolution)
+
+        // Drain through dealer reveal + chip resolution; only NOW should
+        // the displayed value land on the post-resolution balance.
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance)
+    }
+
     // MARK: - newHand clears animation state
 
     @Test("newHand resets animation state and clears revealed cards")
@@ -810,8 +847,10 @@ struct AnimationTests {
         vm.newHand()
         #expect(vm.currentDealId == dealIdBefore)
 
-        // Session 22: newHand clears stagedAnte, so re-stage before
-        // dealing again. Earlier this test relied on the bet carrying over.
+        // Session 30 (Build 2): newHand now pre-stages the table minimum
+        // (was: cleared to 0 in Session 22). This re-stage is a no-op on
+        // .table10 but stays for clarity — the test asserts the deal-id
+        // bump, not the staging value.
         vm.stagedAnte = 10
         vm.deal(); await drainAnimations(); vm.skipToSettled()
         #expect(vm.currentDealId == dealIdBefore + 1)

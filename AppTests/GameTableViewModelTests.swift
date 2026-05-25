@@ -378,8 +378,8 @@ struct GameTableViewModelTests {
         #expect(vm.phase == .awaitingBets)
     }
 
-    @Test("newHand clears staged Ante to zero so the bet zone shows 'Place your bets' (Session 22)")
-    func newHandClearsStagedAnte() {
+    @Test("newHand pre-stages the table-minimum Ante so the next hand matches first-entry (Session 30)")
+    func newHandPreStagesMinimumAnte() {
         let vm = GameTableViewModel(chipStore: Self.bonusClaimed(chipBalance: 10_000), bypassAnimation: true)
         vm.stagedAnte = 100
         vm.cycleTripsBet() // 5
@@ -391,11 +391,49 @@ struct GameTableViewModelTests {
 
         vm.newHand()
 
-        #expect(vm.stagedAnte == 0)
+        // Reverses the Session 22 clear-to-zero behavior: testers found the
+        // first-entry vs new-hand inconsistency confusing. New hand now
+        // pre-stages the table-minimum Ante, just like fresh init. Trips
+        // stays cleared, and the committed bets (which reflect the *prior*
+        // hand) collect back to zero.
+        #expect(vm.stagedAnte == vm.tableConfig.minimumAnte)
         #expect(vm.stagedTrips == 0)
         #expect(vm.anteBet == 0)
         #expect(vm.tripsBet == 0)
         #expect(vm.phase == .awaitingBets)
+    }
+
+    @Test("newHand staged-Ante default matches first-entry across all tables (Session 30)")
+    func newHandStagedAnteMatchesFirstEntryAcrossTables() {
+        for table in TableConfig.all {
+            // First-entry baseline: what stagedAnte do you see on a fresh VM?
+            let fresh = GameTableViewModel(
+                chipStore: Self.bonusClaimed(chipBalance: 10_000),
+                tableConfig: table,
+                bypassAnimation: true
+            )
+            let firstEntryStaged = fresh.stagedAnte
+
+            // Play a hand and reset via newHand; compare.
+            let vm = GameTableViewModel(
+                chipStore: Self.bonusClaimed(chipBalance: 10_000),
+                tableConfig: table,
+                bypassAnimation: true
+            )
+            vm.deal()
+            vm.checkPreFlop()
+            vm.checkPostFlop()
+            vm.betPostRiver()
+            #expect(vm.phase == .handComplete)
+
+            vm.newHand()
+
+            #expect(
+                vm.stagedAnte == firstEntryStaged,
+                "Table \(table.id): newHand staged Ante (\(vm.stagedAnte)) must match first-entry staged Ante (\(firstEntryStaged))"
+            )
+            #expect(vm.stagedAnte == table.minimumAnte)
+        }
     }
 
     // MARK: - REBET

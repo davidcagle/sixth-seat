@@ -444,10 +444,16 @@ final class GameTableViewModel {
     func newHand() {
         guard !isAnimating else { return }
         dispatch(.collectAndReset)
-        // Session 22: clear Ante alongside Trips so New Hand returns to
-        // the "Place your bets" state. Rebet stays the path that carries
-        // the prior bets forward.
-        stagedAnte = 0
+        // Session 30 (Build 2): pre-stage the table-minimum Ante on every
+        // new hand to match first-entry behavior. A real UTH table posts
+        // Ante + Blind every hand — there is no zero-bet state. The
+        // tap-to-cycle UX still reaches $0 via the cycle if the player
+        // wants to skip Trips/clear; this just gives DEAL an affordable
+        // default instead of forcing a cycle tap into every hand.
+        // Affordability gates (DEAL gate at 6× ante, bust detection) run
+        // unchanged — a pre-stage that exceeds balance leaves DEAL
+        // disabled, identical to first-entry. Trips stays cleared.
+        stagedAnte = tableConfig.minimumAnte
         stagedTrips = 0
         resetAnimationState()
     }
@@ -528,7 +534,25 @@ final class GameTableViewModel {
         // While animating, the displayed balance lags the engine — the
         // chip-resolution choreography updates it. Outside of animation,
         // it tracks the engine immediately.
-        if !isAnimating {
+        //
+        // Session 30 (Build 2): suppress the immediate update when this
+        // dispatch is the one that landed the engine on `.handComplete`.
+        // The engine's perform() runs synchronously before `runAnimation`
+        // flips `isAnimating` to true, so without this gate the post-
+        // resolution balance leaks into the BALANCE label *before* the
+        // dealer-reveal choreography plays — equivalent to the dealer
+        // paying you before flipping their hole cards. The chip-resolution
+        // finalizer at the end of `animateChipResolution` (or the
+        // synchronous `finalizeSettledState` on bypass / skip-to-settled)
+        // is the reconciliation point — every terminal dispatch is
+        // immediately followed by `runAnimation`, so reconciliation is
+        // guaranteed on all three settle paths. Bet-placement balance
+        // changes during awaitingBets / preFlopDecision / postFlopDecision
+        // / postRiverDecision keep their synchronous update, preserving
+        // the SPEC 2026-05-11 "chips leave the stack when you bet"
+        // behavior.
+        let landedOnHandComplete = (previousPhase != .handComplete && game.phase == .handComplete)
+        if !isAnimating && !landedOnHandComplete {
             displayedBalance = chipBalance
         }
     }
