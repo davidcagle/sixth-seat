@@ -42,6 +42,23 @@ public enum DebugScenario: String, CaseIterable, Sendable {
     ///     a straight here), the only side bet that does so.
     case boardStraightPushWithTrips
 
+    /// Session 35 Blind truth-table pin (cell 1 of 2): player beats a
+    /// qualifying dealer with a straight. Verifies the canonical Blind
+    /// rule on its primary path — *player wins AND holds straight-or-
+    /// better → Blind pays its paytable*. Distinct from the tie cell
+    /// pinned by `boardStraightPushWithTrips`.
+    case playerStraightBeatsDealerPair
+
+    /// Session 35 Blind truth-table pin (cell 2 of 2): dealer fails to
+    /// qualify AND player holds a straight. This is the cell where
+    /// casinos historically vary and where the engine's behavior must
+    /// match the app's own How-to-Play copy ("the Blind resolves on its
+    /// own paytable" on a no-qualify). Asserts: Ante pushes (no-qualify
+    /// gate), Play pays 1:1, Blind pays on its paytable (no-qualify
+    /// does not suppress the Blind when the player has earned the
+    /// bonus), Trips pays on the player's hand.
+    case dealerNoQualifyPlayerStraight
+
     /// Human-readable label rendered in `DebugMenuView`.
     public var displayName: String {
         switch self {
@@ -50,6 +67,8 @@ public enum DebugScenario: String, CaseIterable, Sendable {
         case .push:                      return "Push (tie on a straight)"
         case .dealerNoQualifyPlayerPair: return "Dealer no-qualify vs player pair"
         case .boardStraightPushWithTrips: return "Board straight push (Trips pays, Blind pushes)"
+        case .playerStraightBeatsDealerPair: return "Player straight beats dealer pair (Blind pays)"
+        case .dealerNoQualifyPlayerStraight: return "Dealer no-qualify vs player straight (Blind pays)"
         }
     }
 
@@ -154,6 +173,55 @@ public enum DebugScenario: String, CaseIterable, Sendable {
                 Card(rank: .ten,   suit: .clubs),
                 Card(rank: .nine,  suit: .clubs),
                 Card(rank: .jack,  suit: .spades),
+            ]
+
+        case .playerStraightBeatsDealerPair:
+            // Player: 7♥ 8♥ — pairs the board for a J-high straight.
+            // Dealer: Q♠ Q♦ — pair of queens (qualifies, but loses).
+            // Community: 9♦ 10♣ J♣ 3♠ 2♣ — gives the player
+            // 7-8-9-10-J (straight, J-high) and the dealer
+            // Q-Q-J-10-9 (pair of queens). Player wins with a
+            // straight against a qualifying dealer pair — the primary
+            // path that pays the Blind on its paytable. Two hearts
+            // total so no player flush is possible; no dealer
+            // straight possible (would need 8 or K, dealer has
+            // neither in hole or board outside the player's 8).
+            return [
+                Card(rank: .seven, suit: .hearts),
+                Card(rank: .eight, suit: .hearts),
+                Card(rank: .queen, suit: .spades),
+                Card(rank: .queen, suit: .diamonds),
+                Card(rank: .nine,  suit: .diamonds),
+                Card(rank: .ten,   suit: .clubs),
+                Card(rank: .jack,  suit: .clubs),
+                Card(rank: .three, suit: .spades),
+                Card(rank: .two,   suit: .clubs),
+            ]
+
+        case .dealerNoQualifyPlayerStraight:
+            // Player: 5♣ 6♣ — completes a 9-high straight with the
+            // board (5-6-7-8-9). Only three clubs total (5,6,J) so
+            // no flush; the straight is the best 5.
+            // Dealer: 2♥ 3♦ — best 5 from hole + board is
+            // K-J-9-8-7 (high card). All ranks unique across the
+            // dealer's 7 cards, no straight possible (would need 10
+            // between 9 and J), no flush (suits 2♥ 3♦ 7♠ 8♥ 9♦ K♠
+            // J♣ — max 2 of any suit). Dealer fails to qualify.
+            // Community: 7♠ 8♥ 9♦ K♠ J♣.
+            // Outcome cell: dealer-no-qualify + player straight —
+            // the canonical "Blind receives action on a no-qualify"
+            // case that matches the app's How-to-Play copy ("the
+            // Blind resolves on its own paytable" on no-qualify).
+            return [
+                Card(rank: .five,  suit: .clubs),
+                Card(rank: .six,   suit: .clubs),
+                Card(rank: .two,   suit: .hearts),
+                Card(rank: .three, suit: .diamonds),
+                Card(rank: .seven, suit: .spades),
+                Card(rank: .eight, suit: .hearts),
+                Card(rank: .nine,  suit: .diamonds),
+                Card(rank: .king,  suit: .spades),
+                Card(rank: .jack,  suit: .clubs),
             ]
         }
     }

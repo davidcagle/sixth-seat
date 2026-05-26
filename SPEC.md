@@ -45,7 +45,7 @@ UTH is a casino table game where each player competes independently against the 
 ### Side Bets
 
 * Trips: Optional side bet. Pays on player's best 5-card hand if three-of-a-kind or better. Independent of dealer hand and dealer qualification.
-* Blind: Mandatory bet equal to Ante. Pays bonus on straight or better per Blind paytable. Pushes on wins below straight. Loses with the Ante on a losing hand.
+* Blind: Mandatory bet equal to Ante. Pays bonus on straight or better per Blind paytable when the player WINS the hand. Pushes on wins below straight. Pushes on a tie regardless of player hand strength. Loses only when the player loses. Dealer-no-qualify does NOT suppress the Blind — it still pays on its paytable when the player holds straight-or-better. See the canonical Blind truth table in the Architectural Decisions log (Session 35 entry) for the full per-cell behavior; this one-line summary is a hook, the table is the source-of-truth.
 * Pairs Plus is not offered in V1. (Removed during scope reconciliation — non-standard for UTH and adds variance without strategic depth.)
 ## Payout Tables
 
@@ -332,6 +332,21 @@ Decisions made in chat that previously drifted between SPEC.md, Fiverr brief, an
   anteBet==0 -> stagedAnte fall-through in the bet-zone display logic. A future change to that
   display rule must preserve this fall-through or NEW HAND will stop showing the pre-staged
   minimum. Flagged, not a defect.
+
+* **Blind bet payout truth table (canonical UTH).** Confirmed via casino rule sources cross-referenced with the app's How-to-Play copy ([HowToPlayCopy.dealerQualification](App/Views/HowToPlayView.swift:166)), and pinned end-to-end through `BetResolution.resolve` + the real 9-card deal flow by three forced-deck per-zone tests in [DebugDealForcerTests.swift](SixthSeat/Tests/SixthSeatTests/DebugDealForcerTests.swift). The Blind is the most-confusing rule in UTH because it is conditional on three independent axes (win/tie/lose × straight-or-better/below straight × dealer-qualifies/no-qualify) in a way the Trips bet is not. The full table the engine implements ([resolveBlind in UTHRules.swift:53](SixthSeat/Sources/SixthSeat/UTHRules.swift:53)):
+
+  | Player vs Dealer | Player rank | Dealer qualifies? | Blind outcome |
+  | --- | --- | --- | --- |
+  | Player WINS | straight-or-better | yes | **Pays its paytable.** [Pinned Session 35: `playerStraightBeatsDealerPairSettlesPerZone`] |
+  | Player WINS | below straight (pair / two-pair / trips) | yes | **Pushes.** Player won the hand but not with a strong enough rank to earn the bonus. |
+  | Player TIES | any | yes (a tie implies qualify) | **Pushes.** The Blind requires the player to *beat* the dealer; tying is not winning. Pinned Session 34: `boardStraightPushWithTripsSettlesPerZone`. |
+  | Player LOSES | any | any | **Loses.** |
+  | Dealer NO-QUALIFY | straight-or-better | no | **Pays its paytable.** No-qualify does NOT suppress the Blind when the player has earned the bonus — the Blind receives action on a no-qualify. Matches HowToPlayCopy.dealerQualification: "the Blind resolves on its own paytable." [Pinned Session 35: `dealerNoQualifyPlayerStraightSettlesPerZone`] This is the cell where casino rules historically vary (Wizard of Odds notes an unconfirmed variant where the Blind pushes on a no-qualify); this engine implements the canonical "Blind receives action" variant, consistent with stated rules. |
+  | Dealer NO-QUALIFY | below straight (pair / two-pair / trips) | no | **Pushes.** Pinned Session 32: `dealerNoQualifyVsPlayerPairSettlesPerZone`. |
+
+  **Implementation note.** `resolveBlind` does not call `DealerQualification.qualifies` — the qualification gate applies only to the Ante. The Blind decision is purely strength-based (`player < dealer → lose`; `player == dealer → push`; `player > dealer AND blindPaytable[player.rank] != nil → pay`; otherwise push). The no-qualify cells emerge correctly from the player-strength comparison because a non-qualifying dealer (= high card) is always exceeded by any player straight-or-better (which trivially makes `player > dealer` true, hitting the paytable lookup), and any below-straight player hand misses the paytable lookup and returns push.
+
+  **Contrast with Trips (the source of the confusion).** Trips pays on the player's hand strength *regardless of the dealer's hand or qualification* — the Trips contract is one-axis (player rank only). The Blind is three-axis (win/tie/lose × player rank × dealer qualify). When players, designers, or QA say "but the Trips paid on the no-qualify, why didn't the Blind?" — the answer is that they don't share a contract. The Trips is unconditional on the player's hand; the Blind is conditional on the player having *won* the hand or, in the no-qualify case, on receiving action despite the Ante push. The Trips-vs-Blind asymmetry is the canonical UTH rule and the load-bearing reason the per-zone test discipline matters: a coincidentally-correct totalNet can mask a wrong Blind or wrong Trips that cancel out. (Sessions 32, 34, 35 pin the discriminating cells; Session 35 logs the full table.)
 
 ## Workflow Lessons
 

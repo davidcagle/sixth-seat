@@ -165,6 +165,95 @@ struct DebugDealForcerTests {
         #expect(result.totalNet == 500)
     }
 
+    /// Session 35 Blind truth-table pin (cell 1 of 2): when the player
+    /// beats a qualifying dealer with a straight, each zone must settle
+    /// independently:
+    ///   - Ante  wins 1:1 (dealer qualifies, player higher rank).
+    ///   - Blind pays its paytable at 1× on a straight (player wins
+    ///     with straight-or-better — the Blind's primary path).
+    ///   - Play  wins 1:1.
+    ///   - Trips pays 5:1 on a straight.
+    /// Pinned end-to-end through the real `BetResolution.resolve` and
+    /// 9-card deal flow so a future regression in any zone can't hide
+    /// behind a coincidentally-correct total.
+    @Test("player straight beats dealer pair: each zone settles correctly")
+    func playerStraightBeatsDealerPairSettlesPerZone() {
+        let game = GameState(chipStore: InMemoryChipStore(chipBalance: 1_000))
+        game.setForcedDeck(Deck(forcedDealOrder: DebugScenario.playerStraightBeatsDealerPair.dealOrder))
+
+        // Ante $10 (Blind auto-matches), Trips $10, 3× pre-flop → Play $30.
+        _ = game.perform(.placeAnte(amount: 10))
+        _ = game.perform(.placeTrips(amount: 10))
+        _ = game.perform(.deal)
+        _ = game.perform(.betPreFlop(multiplier: 3))
+
+        guard let result = game.lastHandResult else {
+            Issue.record("Scenario did not produce a HandResult")
+            return
+        }
+
+        #expect(result.playerHand.rank == .straight)
+        #expect(result.dealerHand.rank == .pair)
+        #expect(result.dealerQualifies == true)
+
+        #expect(result.anteOutcome  == .win)
+        #expect(result.blindOutcome == .blindBonus(multiplier: 1)) // straight pays 1:1
+        #expect(result.playOutcome  == .win)
+        #expect(result.tripsOutcome == .blindBonus(multiplier: 5))
+
+        #expect(result.anteNet  == 10)
+        #expect(result.blindNet == 10) // 1× $10 Blind
+        #expect(result.playNet  == 30)
+        #expect(result.tripsNet == 50) // 5× $10 Trips
+        #expect(result.totalNet == 100)
+    }
+
+    /// Session 35 Blind truth-table pin (cell 2 of 2): when the dealer
+    /// fails to qualify AND the player holds a straight (the cell where
+    /// casino rules historically vary), each zone must settle per the
+    /// app's How-to-Play copy:
+    ///   - Ante  pushes (dealer no-qualify gate).
+    ///   - Blind pays its paytable (no-qualify does NOT suppress the
+    ///     Blind when the player has earned the bonus — "the Blind
+    ///     resolves on its own paytable" per HowToPlayCopy
+    ///     .dealerQualification). This is the regression-of-interest.
+    ///   - Play  still pays 1:1 (no-qualify does not gate the Play).
+    ///   - Trips pays 5:1 on the player's straight independent of the
+    ///     dealer.
+    /// Per-zone nets asserted separately so a wrong zone cannot hide
+    /// behind a coincidentally-correct total.
+    @Test("dealer no-qualify vs player straight: each zone settles correctly")
+    func dealerNoQualifyPlayerStraightSettlesPerZone() {
+        let game = GameState(chipStore: InMemoryChipStore(chipBalance: 1_000))
+        game.setForcedDeck(Deck(forcedDealOrder: DebugScenario.dealerNoQualifyPlayerStraight.dealOrder))
+
+        // Ante $10 (Blind auto-matches), Trips $10, 3× pre-flop → Play $30.
+        _ = game.perform(.placeAnte(amount: 10))
+        _ = game.perform(.placeTrips(amount: 10))
+        _ = game.perform(.deal)
+        _ = game.perform(.betPreFlop(multiplier: 3))
+
+        guard let result = game.lastHandResult else {
+            Issue.record("Scenario did not produce a HandResult")
+            return
+        }
+
+        #expect(result.playerHand.rank == .straight)
+        #expect(result.dealerHand.rank == .highCard)
+        #expect(result.dealerQualifies == false)
+
+        #expect(result.anteOutcome  == .push)                       // no-qualify
+        #expect(result.blindOutcome == .blindBonus(multiplier: 1))  // pays despite no-qualify
+        #expect(result.playOutcome  == .win)                        // no-qualify does not gate Play
+        #expect(result.tripsOutcome == .blindBonus(multiplier: 5))
+
+        #expect(result.anteNet  == 0)
+        #expect(result.blindNet == 10) // 1× $10 Blind — the cell of interest
+        #expect(result.playNet  == 30)
+        #expect(result.tripsNet == 50) // 5× $10 Trips
+        #expect(result.totalNet == 90)
+    }
+
     // MARK: - Helpers
 
     /// Runs the chosen scenario through a fresh `GameState`, checking
