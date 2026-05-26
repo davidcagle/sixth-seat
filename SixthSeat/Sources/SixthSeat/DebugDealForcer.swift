@@ -24,12 +24,19 @@ public enum DebugScenario: String, CaseIterable, Sendable {
     /// verify that Trips pays out independent of the main-bet outcome.
     case push
 
+    /// Reproduces the Session 32 on-device hand: player pairs aces while
+    /// the dealer holds J-high (no qualify). Used to regression-cover the
+    /// per-zone settlement of dealer-no-qualify + player-pair: Ante must
+    /// push, Blind must push (pair < straight floor), Play must win 1:1.
+    case dealerNoQualifyPlayerPair
+
     /// Human-readable label rendered in `DebugMenuView`.
     public var displayName: String {
         switch self {
-        case .dealerDoesNotQualify: return "Dealer fails to qualify"
-        case .playerFlushOnRiver:   return "Player flush on river"
-        case .push:                 return "Push (tie on a straight)"
+        case .dealerDoesNotQualify:      return "Dealer fails to qualify"
+        case .playerFlushOnRiver:        return "Player flush on river"
+        case .push:                      return "Push (tie on a straight)"
+        case .dealerNoQualifyPlayerPair: return "Dealer no-qualify vs player pair"
         }
     }
 
@@ -74,6 +81,25 @@ public enum DebugScenario: String, CaseIterable, Sendable {
                 Card(rank: .nine,  suit: .hearts),
                 Card(rank: .three, suit: .clubs),
                 Card(rank: .jack,  suit: .hearts),
+            ]
+
+        case .dealerNoQualifyPlayerPair:
+            // Player: 5♥ A♣ → pairs aces with the board ace.
+            // Dealer: 5♣ J♦ → J-high after the board (each rank unique,
+            // so no pair on either side except the player's ace pair).
+            // Community: 3♥ 6♠ A♠ K♣ 2♥ — gives the player A-A and the
+            // dealer K-J-6-5-3 high card. Dealer fails to qualify.
+            // Reproduces the Session 32 on-device hand exactly.
+            return [
+                Card(rank: .five,  suit: .hearts),
+                Card(rank: .ace,   suit: .clubs),
+                Card(rank: .five,  suit: .clubs),
+                Card(rank: .jack,  suit: .diamonds),
+                Card(rank: .three, suit: .hearts),
+                Card(rank: .six,   suit: .spades),
+                Card(rank: .ace,   suit: .spades),
+                Card(rank: .king,  suit: .clubs),
+                Card(rank: .two,   suit: .hearts),
             ]
 
         case .push:

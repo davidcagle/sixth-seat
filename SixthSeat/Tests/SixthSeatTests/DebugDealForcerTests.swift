@@ -71,6 +71,47 @@ struct DebugDealForcerTests {
         #expect(result.playOutcome == .push)
     }
 
+    /// Session 32 regression: when the dealer fails to qualify AND the
+    /// player wins with a hand below the Blind paytable floor (pair vs
+    /// dealer high-card), each zone must settle independently:
+    ///   - Ante  pushes (dealer no-qualify gate)
+    ///   - Blind pushes (pair < straight)
+    ///   - Play  wins 1:1
+    ///   - Trips unbet → net 0
+    /// Asserts the four per-zone nets separately so a wrong Ante cannot
+    /// hide behind a coincidentally-correct total.
+    @Test("dealer no-qualify vs player pair: each zone settles correctly")
+    func dealerNoQualifyVsPlayerPairSettlesPerZone() {
+        let game = GameState(chipStore: InMemoryChipStore(chipBalance: 1_000))
+        game.setForcedDeck(Deck(forcedDealOrder: DebugScenario.dealerNoQualifyPlayerPair.dealOrder))
+
+        // Ante $10 (Blind auto-matches), then 3× pre-flop raise → Play $30.
+        // Mirrors the on-device hand: Ante 10, Blind 10, Play 30, Trips 0.
+        _ = game.perform(.placeAnte(amount: 10))
+        _ = game.perform(.deal)
+        _ = game.perform(.betPreFlop(multiplier: 3))
+
+        guard let result = game.lastHandResult else {
+            Issue.record("Scenario did not produce a HandResult")
+            return
+        }
+
+        #expect(result.playerHand.rank == .pair)
+        #expect(result.dealerHand.rank == .highCard)
+        #expect(result.dealerQualifies == false)
+
+        #expect(result.anteOutcome  == .push)
+        #expect(result.blindOutcome == .push)
+        #expect(result.playOutcome  == .win)
+        #expect(result.tripsOutcome == .lose) // pair is below trips floor
+
+        #expect(result.anteNet  == 0)
+        #expect(result.blindNet == 0)
+        #expect(result.playNet  == 30)
+        #expect(result.tripsNet == 0) // unbet
+        #expect(result.totalNet == 30)
+    }
+
     // MARK: - Helpers
 
     /// Runs the chosen scenario through a fresh `GameState`, checking
