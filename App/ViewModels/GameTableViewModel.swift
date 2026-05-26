@@ -380,6 +380,13 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPreFlop(multiplier: multiplier))
         guard errorMessage == nil else { return }
+        // Session 31: show the Play stake leaving the visible stack at the
+        // moment of the wager, matching Ante/Blind/Trips. The Session 30
+        // gate in syncFromGame suppressed displayedBalance entirely on the
+        // .handComplete transition; this restores the post-debit intermediate
+        // value so the dealer-reveal beat represents the resolution credit
+        // (stake-back + net), not the full swing.
+        displayedBalance -= playBet
         audio.play(.chipStackHandle)
         // Pre-flop bet reveals all five community cards, then dealer + chips.
         runAnimation { [weak self] token in
@@ -402,6 +409,8 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPostFlop)
         guard errorMessage == nil else { return }
+        // Session 31: see betPreFlop.
+        displayedBalance -= playBet
         audio.play(.chipStackHandle)
         // Post-flop bet reveals turn + river together, then resolves.
         runAnimation { [weak self] token in
@@ -424,6 +433,12 @@ final class GameTableViewModel {
         guard !isAnimating else { return }
         dispatch(.betPostRiver)
         guard errorMessage == nil else { return }
+        // Session 31: see betPreFlop. The highest-risk cell — placement and
+        // resolution share this dispatch, so the tap-debit and reveal-credit
+        // must not collapse into a single jump. The post-debit intermediate
+        // value lives on displayedBalance from this line until the
+        // chip-resolution finalizer in animateChipResolution lands the final.
+        displayedBalance -= playBet
         audio.play(.chipStackHandle)
         // No new cards revealed — straight to dealer flip + chip resolution.
         runAnimation { [weak self] token in
@@ -551,6 +566,17 @@ final class GameTableViewModel {
         // / postRiverDecision keep their synchronous update, preserving
         // the SPEC 2026-05-11 "chips leave the stack when you bet"
         // behavior.
+        //
+        // Session 31 (Build 2): the three Play-bet wrappers
+        // (betPreFlop / betPostFlop / betPostRiver) explicitly subtract
+        // playBet from displayedBalance after dispatch, *after* this gate
+        // has run. That layered write produces the post-debit intermediate
+        // value the player sees during dealer reveal — the Play chips
+        // visibly leave the stack at the tap, then the dealer-reveal beat
+        // represents the resolution credit (stake-back + net) rather than
+        // the full swing. This sharpens, not contradicts, the Session 30
+        // contract: what freezes during the reveal is the resolution
+        // *credit*, not the player's just-committed wager.
         let landedOnHandComplete = (previousPhase != .handComplete && game.phase == .handComplete)
         if !isAnimating && !landedOnHandComplete {
             displayedBalance = chipBalance

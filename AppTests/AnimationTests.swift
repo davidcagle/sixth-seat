@@ -682,39 +682,238 @@ struct AnimationTests {
         #expect(vm.displayedBalance == vm.chipBalance)
     }
 
-    @Test("Session 30: displayedBalance freezes at pre-resolution value until dealer-reveal choreography lands")
-    func displayedBalanceWaitsForResolutionAnimation() async {
-        // Pins the Build 2 fix: a hand-resolving dispatch (betPostRiver here,
-        // analogous for fold / betPreFlop / betPostFlop) used to leak the
-        // post-resolution balance into the BALANCE label synchronously,
-        // because `syncFromGame` saw `isAnimating == false` (runAnimation
-        // hadn't bumped the token yet). The fix gates the syncFromGame
-        // displayedBalance write on `!landedOnHandComplete`, so the value
-        // freezes until `animateChipResolution`'s finalizer lands it at
-        // the end of the chip-slide. This regression test would fail
-        // under the pre-fix code: displayedBalance would already equal
-        // chipBalance synchronously after `vm.betPostRiver()`.
+    @Test("Session 31: Play stake leaves the visible stack at the tap; only the resolution credit waits for dealer reveal")
+    func playStakeLeavesStackAtTapResolutionWaitsForReveal() async {
+        // Sharpens (does not loosen) the Session 30 contract.
+        //
+        // Session 30 made `syncFromGame` suppress all displayedBalance
+        // writes on the .handComplete transition so the post-resolution
+        // balance didn't leak into the BALANCE label before the dealer
+        // turned their cards. The original assertion was that
+        // displayedBalance "freezes" entirely until the chip-resolution
+        // finalizer — and the test enforced exactly that.
+        //
+        // Session 31 changes the contract: the Ante and Blind already
+        // visibly leave the stack at deal-time, so the Play raise should
+        // too. The three VM bet wrappers (betPreFlop / betPostFlop /
+        // betPostRiver) now explicitly `displayedBalance -= playBet`
+        // immediately after dispatch — overlaying the Session 30 gate
+        // with a single deliberate write to land on the post-debit,
+        // pre-resolution intermediate value. The dealer-reveal beat now
+        // represents the resolution credit (stake-back + net), not the
+        // full swing.
+        //
+        // The Session 30 invariant being preserved: the *resolution credit*
+        // does not leak into the BALANCE label before the reveal. The Play
+        // debit shown at the tap is the player's just-committed wager,
+        // which is exactly what we want them to see. See SPEC §
+        // Architectural Decisions and HANDOFF Session 31.
+        //
+        // betPostRiver is the highest-risk cell — placement and
+        // resolution share this dispatch, so the tap-debit and reveal-
+        // credit must not collapse into a single jump.
         let vm = Self.makeVM()
         vm.stagedAnte = 10
         vm.deal();          await drainAnimations(); vm.skipToSettled()
         vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
         vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
 
-        // Snapshot what the BALANCE label currently shows.
-        let displayedBeforeResolution = vm.displayedBalance
+        // Snapshot what the BALANCE label currently shows (Ante+Blind
+        // already deducted at deal-time).
+        let displayedBeforeBet = vm.displayedBalance
+        let engineBalanceBeforeBet = vm.chipBalance
+        #expect(displayedBeforeBet == engineBalanceBeforeBet,
+                "Pre-tap: displayed and engine balances should agree before any animation runs")
+
         // ImmediateAnimationClock + non-bypass: the dispatch runs sync,
         // the animation Task is spawned but its body hasn't been awaited
         // yet on this frame.
         vm.betPostRiver()
 
         #expect(vm.phase == .handComplete)
-        // Engine balance has moved (Play bet placed, resolution applied).
-        // The BALANCE label must NOT reflect that yet — dealer cards
-        // are still face-down.
-        #expect(vm.displayedBalance == displayedBeforeResolution)
+        // Session 31 contract: Play stake visibly leaves the stack at the
+        // tap. displayedBalance dropped by exactly the just-placed Play
+        // wager (post-river is 1× Ante = 10) — independent of outcome.
+        //
+        // Note: we do NOT assert `displayedBalance != chipBalance` here.
+        // On a loss outcome the engine's post-resolution chipBalance
+        // happens to land at the same value as the post-debit intermediate
+        // (each zone's stake-back + net cancels to zero), so a random-deck
+        // test would flake. The Session 30 "no resolution-credit leak"
+        // invariant is asserted definitively in the forced-deck
+        // playerFlushOnRiver test below, where the win produces a non-zero
+        // net that makes the intermediate-vs-final values strictly differ.
+        #expect(vm.playBet == 10)
+        #expect(vm.displayedBalance == displayedBeforeBet - vm.playBet)
 
-        // Drain through dealer reveal + chip resolution; only NOW should
-        // the displayed value land on the post-resolution balance.
+        // Drain through dealer reveal + chip resolution; NOW the
+        // displayed value lands on the post-resolution balance.
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance,
+                "Post-reveal: chip-resolution finalizer reconciles displayed to engine")
+    }
+
+    @Test("Session 31: Play debit appears at tap for betPreFlop(3) — terminal dispatch routes through community reveal")
+    func playDebitVisibleAtPreFlop3Tap() async {
+        // Random deck — the load-bearing assertion is the post-debit
+        // intermediate value, which holds regardless of outcome. See the
+        // forced-deck tests below for the resolution-credit-doesn't-leak
+        // invariant on non-zero outcomes.
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPreFlop(multiplier: 3)
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playBet == 30) // 3 × ante
+        #expect(vm.displayedBalance == displayedBeforeBet - 30)
+
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance)
+    }
+
+    @Test("Session 31: Play debit appears at tap for betPreFlop(4)")
+    func playDebitVisibleAtPreFlop4Tap() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPreFlop(multiplier: 4)
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playBet == 40) // 4 × ante
+        #expect(vm.displayedBalance == displayedBeforeBet - 40)
+
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance)
+    }
+
+    @Test("Session 31: Play debit appears at tap for betPostFlop(2×)")
+    func playDebitVisibleAtPostFlopTap() async {
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPostFlop()
+
+        #expect(vm.phase == .handComplete)
+        #expect(vm.playBet == 20) // 2 × ante
+        #expect(vm.displayedBalance == displayedBeforeBet - 20)
+
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance)
+    }
+
+    @Test("Session 31: dealer-no-qualify nets to correct final balance with Play debit at placement")
+    func playDebitNetsCorrectlyOnDealerNoQualify() async {
+        // Dealer-no-qualify: Play pays 1:1, Ante pushes (returns stake),
+        // Blind pushes (unless straight or better → blind bonus). On this
+        // forced scenario the player's hand is a high-card-pair-ish and
+        // wins Play but Ante pushes. The math invariant: regardless of
+        // outcome, after drain displayedBalance must equal chipBalance,
+        // and chipBalance must equal startingBalance + total net.
+        DebugDealForcer.pendingScenario = .dealerDoesNotQualify
+        let vm = Self.makeVM(balance: 5_000)
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPostRiver()
+        // Immediately after dispatch: Play debit visible, resolution gated.
+        #expect(vm.displayedBalance == displayedBeforeBet - vm.playBet)
+
+        await drainAnimations()
+        // Reconciles: no double-debit, no dropped credit.
+        #expect(vm.displayedBalance == vm.chipBalance)
+        // Engine math sanity: started at 5000, no Trips bet, so the only
+        // delta from start is the resolution net. We don't pin a specific
+        // number here — the engine's own tests pin the per-outcome math.
+        // What this test pins is the *display* matching the engine after
+        // a Play raise on a no-qualify outcome.
+    }
+
+    @Test("Session 31: player-win (flush on river) — Play debit shows at tap, resolution credit gated to reveal, no double-count")
+    func playDebitNetsCorrectlyOnPlayerWin() async {
+        // This is the strict pin for the "resolution-credit doesn't leak"
+        // invariant. A forced win produces non-zero net, so the
+        // post-debit intermediate displayedBalance and the
+        // post-resolution chipBalance are guaranteed to differ pre-drain.
+        DebugDealForcer.pendingScenario = .playerFlushOnRiver
+        let vm = Self.makeVM(balance: 5_000)
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPostRiver()
+
+        // Tap-debit visible: post-debit intermediate equals
+        // displayedBeforeBet - playBet.
+        #expect(vm.displayedBalance == displayedBeforeBet - vm.playBet)
+        // Resolution credit DOES NOT leak: engine has already moved
+        // chipBalance to its post-resolution final (player won, so it
+        // grew past 5000), but displayedBalance is still the post-debit
+        // intermediate — strictly less than chipBalance pre-reveal.
+        #expect(vm.displayedBalance < vm.chipBalance,
+                "Pre-reveal: resolution credit must not leak into the BALANCE label")
+
+        await drainAnimations()
+        // Post-reveal reconciliation: displayed lands on engine final.
+        #expect(vm.displayedBalance == vm.chipBalance)
+        // Player won — engine balance grew vs. starting.
+        #expect(vm.chipBalance > 5_000)
+    }
+
+    @Test("Session 31: push outcome nets to correct final balance with Play debit at placement")
+    func playDebitNetsCorrectlyOnPush() async {
+        DebugDealForcer.pendingScenario = .push
+        let vm = Self.makeVM(balance: 5_000)
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeBet = vm.displayedBalance
+        vm.betPostRiver()
+        #expect(vm.displayedBalance == displayedBeforeBet - vm.playBet)
+
+        await drainAnimations()
+        #expect(vm.displayedBalance == vm.chipBalance)
+        // Push: Ante + Blind + Play all return stake, no net change.
+        #expect(vm.chipBalance == 5_000)
+    }
+
+    @Test("Session 31 regression: fold does NOT decrement displayedBalance at the tap (fix is surgical to Play raises)")
+    func foldDoesNotDecrementDisplayedBalance() async {
+        // The Session 31 fix touches only the three Play-bet wrappers.
+        // Fold is a separate terminal dispatch — the engine doesn't debit
+        // anything at fold (it only credits Trips if any), so the
+        // displayedBalance must NOT move at the tap. The Session 30 gate
+        // continues to defer any Trips credit until the chip-resolution
+        // beat (no dealer reveal on fold, but chip resolution still runs).
+        let vm = Self.makeVM()
+        vm.stagedAnte = 10
+        vm.deal();          await drainAnimations(); vm.skipToSettled()
+        vm.checkPreFlop();  await drainAnimations(); vm.skipToSettled()
+        vm.checkPostFlop(); await drainAnimations(); vm.skipToSettled()
+
+        let displayedBeforeFold = vm.displayedBalance
+        vm.fold()
+
+        #expect(vm.phase == .handComplete)
+        // No Play stake placed; no Trips on this hand. displayedBalance
+        // must be UNCHANGED at the tap — the Session 30 freeze still
+        // governs fold's terminal dispatch.
+        #expect(vm.displayedBalance == displayedBeforeFold)
+
         await drainAnimations()
         #expect(vm.displayedBalance == vm.chipBalance)
     }
