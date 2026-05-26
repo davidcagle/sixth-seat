@@ -112,6 +112,59 @@ struct DebugDealForcerTests {
         #expect(result.totalNet == 30)
     }
 
+    /// Session 34 regression: when player and dealer both play the same
+    /// board straight (a true tie on a qualifying-dealer hand) with a
+    /// Trips bet placed, each zone must settle independently. Pins three
+    /// rules in one assertion sweep:
+    ///
+    ///   - Ante  pushes on a tie (NOT via dealer-no-qualify — dealer
+    ///     qualifies on a straight; this is a pure heads-up tie).
+    ///   - Play  pushes on a tie.
+    ///   - Blind pushes on a tie EVEN WHEN the player holds a straight.
+    ///     The Blind requires the player to *beat* the dealer; tying is
+    ///     not winning. This is the regression-of-interest — the rule
+    ///     is also pinned synthetically by `Blind pushes on tie` in
+    ///     `UTHRulesTests`, but here it is exercised end-to-end through
+    ///     `BetResolution.resolve` + the real 9-card deal flow.
+    ///   - Trips pays per its paytable (5:1 on a straight) independent
+    ///     of the dealer — the only side bet that does so.
+    ///
+    /// Asserts the four per-zone nets separately so a wrong zone cannot
+    /// hide behind a coincidentally-correct total (same per-zone
+    /// discipline as Session 32's dealer-no-qualify regression).
+    @Test("board-straight push with Trips: each zone settles correctly")
+    func boardStraightPushWithTripsSettlesPerZone() {
+        let game = GameState(chipStore: InMemoryChipStore(chipBalance: 2_000))
+        game.setForcedDeck(Deck(forcedDealOrder: DebugScenario.boardStraightPushWithTrips.dealOrder))
+
+        // Mirrors the on-device hand: Ante 100, Blind auto-matches 100,
+        // Trips 100, then 4× pre-flop raise → Play 400.
+        _ = game.perform(.placeAnte(amount: 100))
+        _ = game.perform(.placeTrips(amount: 100))
+        _ = game.perform(.deal)
+        _ = game.perform(.betPreFlop(multiplier: 4))
+
+        guard let result = game.lastHandResult else {
+            Issue.record("Scenario did not produce a HandResult")
+            return
+        }
+
+        #expect(result.playerHand.rank == .straight)
+        #expect(result.dealerHand.rank == .straight)
+        #expect(result.dealerQualifies == true) // straight » pair-or-better
+
+        #expect(result.anteOutcome  == .push)
+        #expect(result.blindOutcome == .push)
+        #expect(result.playOutcome  == .push)
+        #expect(result.tripsOutcome == .blindBonus(multiplier: 5))
+
+        #expect(result.anteNet  == 0)
+        #expect(result.blindNet == 0)
+        #expect(result.playNet  == 0)
+        #expect(result.tripsNet == 500) // straight pays 5:1 on $100 Trips
+        #expect(result.totalNet == 500)
+    }
+
     // MARK: - Helpers
 
     /// Runs the chosen scenario through a fresh `GameState`, checking

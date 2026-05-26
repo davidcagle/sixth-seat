@@ -30,6 +30,18 @@ public enum DebugScenario: String, CaseIterable, Sendable {
     /// push, Blind must push (pair < straight floor), Play must win 1:1.
     case dealerNoQualifyPlayerPair
 
+    /// Reproduces the Session 34 on-device hand: the board itself contains
+    /// a straight (9-10-J-Q-K) and both player and dealer's best 5 is the
+    /// board straight, producing a true tie on a qualifying-dealer hand.
+    /// Pins three rules at once via the per-zone net assertions:
+    ///   - Ante / Play push on a tie.
+    ///   - Blind pushes on a tie EVEN WHEN the player holds a straight —
+    ///     the Blind requires the player to *beat* the dealer; tying is
+    ///     not winning. Distinct from the Trips contract.
+    ///   - Trips pays per its paytable independent of the dealer (5:1 on
+    ///     a straight here), the only side bet that does so.
+    case boardStraightPushWithTrips
+
     /// Human-readable label rendered in `DebugMenuView`.
     public var displayName: String {
         switch self {
@@ -37,6 +49,7 @@ public enum DebugScenario: String, CaseIterable, Sendable {
         case .playerFlushOnRiver:        return "Player flush on river"
         case .push:                      return "Push (tie on a straight)"
         case .dealerNoQualifyPlayerPair: return "Dealer no-qualify vs player pair"
+        case .boardStraightPushWithTrips: return "Board straight push (Trips pays, Blind pushes)"
         }
     }
 
@@ -119,6 +132,28 @@ public enum DebugScenario: String, CaseIterable, Sendable {
                 Card(rank: .queen, suit: .diamonds),
                 Card(rank: .jack,  suit: .hearts),
                 Card(rank: .ten,   suit: .hearts),
+            ]
+
+        case .boardStraightPushWithTrips:
+            // Player: 6♥ 5♦ — plays the board straight.
+            // Dealer: 7♦ 2♦ — also plays the board straight.
+            // Community: Q♠ K♥ 10♣ 9♣ J♠ — the board itself contains
+            // the 9-10-J-Q-K straight, so both pools evaluate to the
+            // identical K-high straight. Dealer qualifies (straight is
+            // well above the pair-or-better floor), so the Ante does
+            // NOT push via the dealer-no-qualify gate — it pushes
+            // strictly on the tie. Reproduces the Session 34 on-device
+            // hand exactly.
+            return [
+                Card(rank: .six,   suit: .hearts),
+                Card(rank: .five,  suit: .diamonds),
+                Card(rank: .seven, suit: .diamonds),
+                Card(rank: .two,   suit: .diamonds),
+                Card(rank: .queen, suit: .spades),
+                Card(rank: .king,  suit: .hearts),
+                Card(rank: .ten,   suit: .clubs),
+                Card(rank: .nine,  suit: .clubs),
+                Card(rank: .jack,  suit: .spades),
             ]
         }
     }
