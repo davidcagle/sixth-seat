@@ -2,7 +2,7 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-05-25 (Session 31 — Build 2 Part 2: Play-bet decrement-at-placement, layered on Session 30 resolution gate)
+**Last updated:** 2026-05-25 (Session 33 — doc-only: logged REBET/NEW HAND behavioral decision to SPEC Architectural Decisions)
 
 **Project completion estimate:** ~98% complete
 
@@ -66,6 +66,7 @@ Claude Code handles its own merges. The user does not run merge commands manuall
 
 | Session | Summary | Net lines |
 |---|---|---|
+| 33 | Doc-only. Logged the REBET / NEW HAND post-hand button behavior to SPEC Architectural Decisions — the two buttons were discovered as undocumented build behavior in Session 32 (UI flag), verified correct against standard casino convention, and recorded so a future session can't misread them as drift. NEW HAND dispatches `.collectAndReset`, stages `Ante = tableConfig.minimumAnte` + `Trips = 0`, does NOT deal (Session 30 Fix 1 behavior, with Ante/Blind display fall-through to `stagedAnte` when `anteBet == 0`). REBET is guarded on `canRebet (chipBalance >= lastAnte × 2)`, stages `Ante = lastAnte` + `Trips = lastTripsBet` (when affordable after doubled Ante), then calls `deal()` immediately (dispatched on the next runloop tick when animating). Entry includes an implicit-behavior note pinning the bet-zone display fall-through that NEW HAND depends on. No code, view, VM, or test changes. SPEC and HANDOFF only. **Tests.** Engine: 208 (unchanged). App: 281 (unchanged). Combined: 489 (unchanged from Session 32). | 489 (unchanged) |
 | 14 | Main Menu screen + NavigationStack routing + persistent ChipStore | 224 |
 | 14a | Bug fixes: bonus stacking on first launch, community cards face-down regression | 232 |
 | 12 | Deal all 5 community cards face-down up front; flip on phase transitions instead of phase deal | 238 |
