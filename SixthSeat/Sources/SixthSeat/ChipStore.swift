@@ -16,12 +16,6 @@ public protocol ChipStoreProtocol: AnyObject, Sendable {
     var hasReceivedSecondChanceBonus: Bool { get set }
     var totalHandsPlayed: Int { get set }
 
-    /// Per-install first-purchase doubler flag. `false` on a fresh install;
-    /// flipped to `true` by `ChipPurchaseProcessor.credit` *before* chips
-    /// are credited so a force-quit during the credit step can't replay
-    /// the doubler on next launch. (Session 16)
-    var hasMadeFirstPurchase: Bool { get set }
-
     /// Set of `Transaction.id` strings that have already credited chips on
     /// this install. The IAP credit path consults this set as its first
     /// guard — a transaction whose id is already present is a no-op,
@@ -68,11 +62,6 @@ public final class UserDefaultsChipStore: ChipStoreProtocol, @unchecked Sendable
         set { defaults.set(newValue, forKey: PersistenceKeys.totalHandsPlayed) }
     }
 
-    public var hasMadeFirstPurchase: Bool {
-        get { defaults.bool(forKey: PersistenceKeys.hasMadeFirstPurchase) }
-        set { defaults.set(newValue, forKey: PersistenceKeys.hasMadeFirstPurchase) }
-    }
-
     public var processedTransactionIDs: Set<String> {
         get {
             let array = defaults.array(forKey: PersistenceKeys.processedTransactionIDs) as? [String] ?? []
@@ -92,7 +81,6 @@ public final class UserDefaultsChipStore: ChipStoreProtocol, @unchecked Sendable
         defaults.removeObject(forKey: PersistenceKeys.hasReceivedStarterBonus)
         defaults.removeObject(forKey: PersistenceKeys.hasReceivedSecondChanceBonus)
         defaults.removeObject(forKey: PersistenceKeys.totalHandsPlayed)
-        defaults.removeObject(forKey: PersistenceKeys.hasMadeFirstPurchase)
         defaults.removeObject(forKey: PersistenceKeys.processedTransactionIDs)
     }
 }
@@ -106,7 +94,6 @@ public final class InMemoryChipStore: ChipStoreProtocol, @unchecked Sendable {
     public var hasReceivedStarterBonus: Bool
     public var hasReceivedSecondChanceBonus: Bool
     public var totalHandsPlayed: Int
-    public var hasMadeFirstPurchase: Bool
     public var processedTransactionIDs: Set<String>
 
     public init(
@@ -114,14 +101,12 @@ public final class InMemoryChipStore: ChipStoreProtocol, @unchecked Sendable {
         hasReceivedStarterBonus: Bool = false,
         hasReceivedSecondChanceBonus: Bool = false,
         totalHandsPlayed: Int = 0,
-        hasMadeFirstPurchase: Bool = false,
         processedTransactionIDs: Set<String> = []
     ) {
         self.chipBalance = chipBalance
         self.hasReceivedStarterBonus = hasReceivedStarterBonus
         self.hasReceivedSecondChanceBonus = hasReceivedSecondChanceBonus
         self.totalHandsPlayed = totalHandsPlayed
-        self.hasMadeFirstPurchase = hasMadeFirstPurchase
         self.processedTransactionIDs = processedTransactionIDs
     }
 
@@ -130,7 +115,6 @@ public final class InMemoryChipStore: ChipStoreProtocol, @unchecked Sendable {
         hasReceivedStarterBonus = false
         hasReceivedSecondChanceBonus = false
         totalHandsPlayed = 0
-        hasMadeFirstPurchase = false
         processedTransactionIDs = []
     }
 }

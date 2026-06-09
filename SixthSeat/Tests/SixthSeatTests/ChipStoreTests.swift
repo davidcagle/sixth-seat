@@ -5,14 +5,13 @@ import Testing
 @Suite("InMemoryChipStore")
 struct InMemoryChipStoreTests {
 
-    @Test("Default values are 0 balance, false bonus flags, 0 hands played, doubler armed, no processed transactions")
+    @Test("Default values are 0 balance, false bonus flags, 0 hands played, no processed transactions")
     func defaultValues() {
         let store = InMemoryChipStore()
         #expect(store.chipBalance == 0)
         #expect(store.hasReceivedStarterBonus == false)
         #expect(store.hasReceivedSecondChanceBonus == false)
         #expect(store.totalHandsPlayed == 0)
-        #expect(store.hasMadeFirstPurchase == false)
         #expect(store.processedTransactionIDs.isEmpty)
     }
 
@@ -23,14 +22,12 @@ struct InMemoryChipStoreTests {
         store.hasReceivedStarterBonus = true
         store.hasReceivedSecondChanceBonus = true
         store.totalHandsPlayed = 42
-        store.hasMadeFirstPurchase = true
         store.processedTransactionIDs = ["tx-a", "tx-b"]
 
         #expect(store.chipBalance == 1_234)
         #expect(store.hasReceivedStarterBonus == true)
         #expect(store.hasReceivedSecondChanceBonus == true)
         #expect(store.totalHandsPlayed == 42)
-        #expect(store.hasMadeFirstPurchase == true)
         #expect(store.processedTransactionIDs == ["tx-a", "tx-b"])
     }
 
@@ -41,7 +38,6 @@ struct InMemoryChipStoreTests {
             hasReceivedStarterBonus: true,
             hasReceivedSecondChanceBonus: true,
             totalHandsPlayed: 7,
-            hasMadeFirstPurchase: true,
             processedTransactionIDs: ["tx-1"]
         )
 
@@ -51,7 +47,6 @@ struct InMemoryChipStoreTests {
         #expect(store.hasReceivedStarterBonus == false)
         #expect(store.hasReceivedSecondChanceBonus == false)
         #expect(store.totalHandsPlayed == 0)
-        #expect(store.hasMadeFirstPurchase == false)
         #expect(store.processedTransactionIDs.isEmpty)
     }
 }
@@ -108,18 +103,6 @@ struct UserDefaultsChipStoreTests {
         #expect(store.hasReceivedStarterBonus == true)
     }
 
-    @Test("hasMadeFirstPurchase round-trips through UserDefaults — fresh install reads false, then write+read true")
-    func hasMadeFirstPurchaseRoundTrip() {
-        let defaults = Self.freshDefaults()
-        let store = UserDefaultsChipStore(defaults: defaults)
-
-        #expect(store.hasMadeFirstPurchase == false)
-        store.hasMadeFirstPurchase = true
-        #expect(store.hasMadeFirstPurchase == true)
-        // Reading via raw UserDefaults confirms the persisted shape.
-        #expect(defaults.bool(forKey: PersistenceKeys.hasMadeFirstPurchase) == true)
-    }
-
     @Test("processedTransactionIDs round-trips as a [String] in UserDefaults and re-reads as a Set")
     func processedTransactionIDsRoundTrip() {
         let defaults = Self.freshDefaults()
@@ -133,20 +116,17 @@ struct UserDefaultsChipStoreTests {
         #expect(store.processedTransactionIDs == ["tx-a", "tx-m", "tx-z"])
     }
 
-    @Test("reset() clears the IAP idempotency keys alongside the chip-economy keys")
+    @Test("reset() clears the IAP idempotency key alongside the chip-economy keys")
     func resetClearsIAPKeys() {
         let defaults = Self.freshDefaults()
         let store = UserDefaultsChipStore(defaults: defaults)
-        store.hasMadeFirstPurchase = true
         store.processedTransactionIDs = ["tx-1", "tx-2"]
         store.chipBalance = 12_345
 
         store.reset()
 
-        #expect(store.hasMadeFirstPurchase == false)
         #expect(store.processedTransactionIDs.isEmpty)
         #expect(store.chipBalance == 0)
-        #expect(defaults.object(forKey: PersistenceKeys.hasMadeFirstPurchase) == nil)
         #expect(defaults.object(forKey: PersistenceKeys.processedTransactionIDs) == nil)
     }
 }

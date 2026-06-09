@@ -31,14 +31,6 @@ public enum PersistenceKeys {
     /// or unknown id resolves to `TableConfig.defaultTable`. (Session 15b)
     public static let selectedTableID = "com.sixthseat.uth.settings.selectedTableID"
 
-    /// Set to `true` once any chip-bundle IAP has completed successfully on
-    /// this install. Drives the per-install first-purchase doubler: while
-    /// false, every tier displays and credits 2× its base chip amount.
-    /// Flipped to true *before* chips are credited (force-quit safety —
-    /// same pattern as `hasReceivedSecondChanceBonus`). Resetting via
-    /// `ChipStoreProtocol.reset()` re-arms the doubler. (Session 16)
-    public static let hasMadeFirstPurchase = "com.sixthseat.uth.iap.hasMadeFirstPurchase"
-
     /// JSON-encoded array (stored as `[String]` via UserDefaults) of every
     /// `Transaction.id` that has already credited chips on this install.
     /// Guards the credit path against double-crediting on listener replay,

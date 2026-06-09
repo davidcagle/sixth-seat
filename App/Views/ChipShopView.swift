@@ -1,12 +1,11 @@
 import SwiftUI
 import SixthSeat
 
-/// Real Chip Shop. Five tiers with StoreKit-localized prices, a
-/// per-install first-purchase doubler banner, restore button, and a
-/// no-cash-value reinforcement line. The view is dumb: every behavior
-/// (loading, errors, doubler math, balance refresh) lives in
-/// `ChipShopViewModel`, and the doubler / strikethrough math comes
-/// from engine helpers in `ChipShopLogic`.
+/// Real Chip Shop. Five tiers with StoreKit-localized prices, a restore
+/// button, and a no-cash-value reinforcement line. The view is dumb:
+/// every behavior (loading, errors, balance refresh) lives in
+/// `ChipShopViewModel`, and chip-amount formatting comes from engine
+/// helpers in `ChipShopLogic`.
 struct ChipShopView: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -24,9 +23,6 @@ struct ChipShopView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     headerSection
-                    if viewModel.doublerActive {
-                        doublerBanner
-                    }
                     bundlesSection
                     restoreSection
                     noCashValueLine
@@ -56,20 +52,6 @@ struct ChipShopView: View {
                 .accessibilityIdentifier("ChipShop.Balance")
         }
         .padding(.top, 4)
-    }
-
-    private var doublerBanner: some View {
-        Text(ChipShopLogic.bannerText)
-            .font(.system(size: 14, weight: .heavy, design: .rounded))
-            .tracking(1)
-            .foregroundStyle(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.yellow)
-            )
-            .accessibilityIdentifier("ChipShop.DoublerBanner")
     }
 
     private var bundlesSection: some View {
@@ -166,17 +148,10 @@ struct ChipShopView: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("\(ChipShopLogic.formatChipAmount(viewModel.displayAmount(for: bundle))) chips")
+                Text("\(ChipShopLogic.formatChipAmount(bundle.chipAmount)) chips")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .accessibilityIdentifier("ChipShop.Amount.\(bundle.id)")
-                if let strikethrough = viewModel.strikethroughAmount(for: bundle) {
-                    Text(ChipShopLogic.formatChipAmount(strikethrough))
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .strikethrough(true, color: .white.opacity(0.7))
-                        .accessibilityIdentifier("ChipShop.Strikethrough.\(bundle.id)")
-                }
             }
 
             Button {

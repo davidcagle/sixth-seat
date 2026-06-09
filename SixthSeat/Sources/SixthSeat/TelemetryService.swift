@@ -11,7 +11,7 @@ import OSLog
 /// threaded through every site.
 public protocol TelemetryService: Sendable {
     func purchaseInitiated(productID: String)
-    func purchaseSucceeded(productID: String, isFirstPurchase: Bool)
+    func purchaseSucceeded(productID: String)
     func purchaseFailed(productID: String, reason: String)
     func restoreInitiated()
     func restoreCompleted(count: Int)
@@ -65,8 +65,8 @@ public struct LoggingTelemetryService: TelemetryService {
         logger.notice("purchase_initiated product=\(productID, privacy: .public)")
     }
 
-    public func purchaseSucceeded(productID: String, isFirstPurchase: Bool) {
-        logger.notice("purchase_succeeded product=\(productID, privacy: .public) firstPurchase=\(isFirstPurchase, privacy: .public)")
+    public func purchaseSucceeded(productID: String) {
+        logger.notice("purchase_succeeded product=\(productID, privacy: .public)")
     }
 
     public func purchaseFailed(productID: String, reason: String) {
@@ -100,7 +100,7 @@ public final class RecordingTelemetryService: TelemetryService, @unchecked Senda
 
     public enum Event: Equatable, Sendable {
         case purchaseInitiated(productID: String)
-        case purchaseSucceeded(productID: String, isFirstPurchase: Bool)
+        case purchaseSucceeded(productID: String)
         case purchaseFailed(productID: String, reason: String)
         case restoreInitiated
         case restoreCompleted(count: Int)
@@ -140,8 +140,8 @@ public final class RecordingTelemetryService: TelemetryService, @unchecked Senda
         append(.purchaseInitiated(productID: productID))
     }
 
-    public func purchaseSucceeded(productID: String, isFirstPurchase: Bool) {
-        append(.purchaseSucceeded(productID: productID, isFirstPurchase: isFirstPurchase))
+    public func purchaseSucceeded(productID: String) {
+        append(.purchaseSucceeded(productID: productID))
     }
 
     public func purchaseFailed(productID: String, reason: String) {

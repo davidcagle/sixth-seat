@@ -4,8 +4,8 @@ import StoreKit
 /// Production `IAPService` backed by StoreKit 2's `Product` /
 /// `Transaction` APIs. Verifies transaction signatures via
 /// `VerificationResult` (client-side only — server-side validation is
-/// V2). Crediting goes through `ChipPurchaseProcessor` so the doubler
-/// and idempotency guards are identical to the test double.
+/// V2). Crediting goes through `ChipPurchaseProcessor` so the
+/// idempotency guard is identical to the test double.
 public final class StoreKitIAPService: IAPService, @unchecked Sendable {
 
     private let chipStore: ChipStoreProtocol
@@ -146,12 +146,12 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
             await transaction.finish()
 
             switch outcome {
-            case .credited(let amount, let isFirstPurchase):
-                telemetry.purchaseSucceeded(productID: bundle.id, isFirstPurchase: isFirstPurchase)
-                return .success(creditedAmount: amount, isFirstPurchase: isFirstPurchase)
+            case .credited(let amount):
+                telemetry.purchaseSucceeded(productID: bundle.id)
+                return .success(creditedAmount: amount)
             case .alreadyProcessed:
-                telemetry.purchaseSucceeded(productID: bundle.id, isFirstPurchase: false)
-                return .success(creditedAmount: 0, isFirstPurchase: false)
+                telemetry.purchaseSucceeded(productID: bundle.id)
+                return .success(creditedAmount: 0)
             }
 
         case .unverified(_, let error):
@@ -172,8 +172,8 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
             store: chipStore
         )
         await transaction.finish()
-        if case .credited(_, let isFirstPurchase) = outcome {
-            telemetry.purchaseSucceeded(productID: bundle.id, isFirstPurchase: isFirstPurchase)
+        if case .credited = outcome {
+            telemetry.purchaseSucceeded(productID: bundle.id)
         }
     }
 }

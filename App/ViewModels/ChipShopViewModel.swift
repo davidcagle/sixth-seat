@@ -3,11 +3,10 @@ import Observation
 import SixthSeat
 
 /// View model backing the real Chip Shop screen. Owns the per-tier
-/// loading and error state, observes the chip balance + first-purchase
-/// flag for banner toggling, and routes purchase/restore intents into
-/// the injected `IAPService`. Engine business rules (doubler,
-/// idempotency, telemetry) live in the engine — this layer only
-/// translates between user intents and engine surface.
+/// loading and error state, observes the chip balance, and routes
+/// purchase/restore intents into the injected `IAPService`. Engine
+/// business rules (idempotency, telemetry) live in the engine — this
+/// layer only translates between user intents and engine surface.
 @Observable
 @MainActor
 final class ChipShopViewModel {
@@ -22,7 +21,6 @@ final class ChipShopViewModel {
     /// `loadProducts()` returns with `Product.displayPrice` values.
     private(set) var bundles: [ChipBundle] = ChipBundleCatalog.all
     private(set) var balance: Int
-    private(set) var hasMadeFirstPurchase: Bool
 
     /// Bundle id currently in-flight. Drives per-card spinner + button
     /// disable. Only one purchase can be in flight at a time.
@@ -45,7 +43,6 @@ final class ChipShopViewModel {
         self.chipStore = chipStore
         self.haptics = haptics
         self.balance = chipStore.chipBalance
-        self.hasMadeFirstPurchase = chipStore.hasMadeFirstPurchase
     }
 
     // MARK: - Intents
@@ -77,7 +74,7 @@ final class ChipShopViewModel {
         do {
             let result = try await iapService.purchase(bundle)
             switch result {
-            case .success(let creditedAmount, _):
+            case .success(let creditedAmount):
                 if creditedAmount > 0 {
                     haptics.notification(.success)
                 }
@@ -114,18 +111,6 @@ final class ChipShopViewModel {
 
     // MARK: - Derived state for the view
 
-    var doublerActive: Bool {
-        ChipShopLogic.doublerActive(hasMadeFirstPurchase: hasMadeFirstPurchase)
-    }
-
-    func displayAmount(for bundle: ChipBundle) -> Int {
-        ChipShopLogic.displayAmount(for: bundle, doublerActive: doublerActive)
-    }
-
-    func strikethroughAmount(for bundle: ChipBundle) -> Int? {
-        ChipShopLogic.strikethroughAmount(for: bundle, doublerActive: doublerActive)
-    }
-
     func isLoading(_ bundle: ChipBundle) -> Bool {
         loadingBundleID == bundle.id
     }
@@ -138,6 +123,5 @@ final class ChipShopViewModel {
 
     private func refreshFromStore() {
         balance = chipStore.chipBalance
-        hasMadeFirstPurchase = chipStore.hasMadeFirstPurchase
     }
 }

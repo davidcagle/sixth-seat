@@ -43,7 +43,7 @@ struct InMemoryIAPServiceTests {
 
     // MARK: - Purchase paths
 
-    @Test("Successful purchase credits chips through the processor and records telemetry")
+    @Test("Successful purchase credits the nominal chip amount through the processor and records telemetry")
     func purchaseSuccess() async throws {
         let (service, store, telemetry) = makeService()
         service.nextPurchaseResult = .success
@@ -51,12 +51,11 @@ struct InMemoryIAPServiceTests {
 
         let result = try await service.purchase(bundle)
 
-        #expect(result == .success(creditedAmount: bundle.chipAmount * 2, isFirstPurchase: true))
-        #expect(store.chipBalance == bundle.chipAmount * 2)
-        #expect(store.hasMadeFirstPurchase == true)
+        #expect(result == .success(creditedAmount: bundle.chipAmount))
+        #expect(store.chipBalance == bundle.chipAmount)
         #expect(store.processedTransactionIDs.contains("tx-success-1"))
         #expect(telemetry.events.contains(.purchaseInitiated(productID: bundle.id)))
-        #expect(telemetry.events.contains(.purchaseSucceeded(productID: bundle.id, isFirstPurchase: true)))
+        #expect(telemetry.events.contains(.purchaseSucceeded(productID: bundle.id)))
     }
 
     @Test("User-cancelled purchase does not mutate the store and emits initiated but not succeeded")
@@ -68,7 +67,6 @@ struct InMemoryIAPServiceTests {
 
         #expect(result == .userCancelled)
         #expect(store.chipBalance == 0)
-        #expect(store.hasMadeFirstPurchase == false)
         #expect(telemetry.events.contains(.purchaseInitiated(productID: bundle.id)))
         let succeeded = telemetry.events.filter { if case .purchaseSucceeded = $0 { return true } else { return false } }
         #expect(succeeded.isEmpty)
@@ -83,7 +81,6 @@ struct InMemoryIAPServiceTests {
 
         #expect(result == .pending)
         #expect(store.chipBalance == 0)
-        #expect(store.hasMadeFirstPurchase == false)
     }
 
     @Test("Verification failure returns .failed(.verificationFailed) and records the failure telemetry")
@@ -119,8 +116,8 @@ struct InMemoryIAPServiceTests {
         _ = try await service.purchase(bundle)
         let secondResult = try await service.purchase(bundle)
 
-        #expect(secondResult == .success(creditedAmount: 0, isFirstPurchase: false))
-        #expect(store.chipBalance == bundle.chipAmount * 2) // first credit only
+        #expect(secondResult == .success(creditedAmount: 0))
+        #expect(store.chipBalance == bundle.chipAmount) // first credit only
     }
 
     // MARK: - Restore

@@ -416,9 +416,9 @@ struct BustFlowTests {
         // engine's IAPService. Verifying the type compiles with the
         // expected dependencies is what the SwiftUI-test layer can
         // offer here without a UI test runner. Stable identifiers
-        // include ChipShop.Balance, ChipShop.DoublerBanner,
-        // ChipShop.Buy.<id>, ChipShop.Restore, ChipShop.NoCashValue,
-        // and ChipShop.BackToMenu.
+        // include ChipShop.Balance, ChipShop.Buy.<id>,
+        // ChipShop.Restore, ChipShop.NoCashValue, and
+        // ChipShop.BackToMenu.
         let store = InMemoryChipStore(chipBalance: 1_000, hasReceivedStarterBonus: true)
         let vm = ChipShopViewModel(
             iapService: InMemoryIAPService(chipStore: store),

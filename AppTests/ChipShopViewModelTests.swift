@@ -9,13 +9,11 @@ struct ChipShopViewModelTests {
 
     private func makeViewModel(
         balance: Int = 5_000,
-        hasMadeFirstPurchase: Bool = false,
         scriptedPurchase: InMemoryIAPService.Scripted = .success
     ) -> (ChipShopViewModel, InMemoryChipStore, InMemoryIAPService, RecordingHapticsService) {
         let store = InMemoryChipStore(
             chipBalance: balance,
-            hasReceivedStarterBonus: true,
-            hasMadeFirstPurchase: hasMadeFirstPurchase
+            hasReceivedStarterBonus: true
         )
         let telemetry = RecordingTelemetryService()
         let iap = InMemoryIAPService(chipStore: store, telemetry: telemetry)
@@ -29,41 +27,10 @@ struct ChipShopViewModelTests {
 
     @Test("Initial state mirrors the chip store")
     func initialStateMirrorsStore() {
-        let (vm, _, _, _) = makeViewModel(balance: 12_000, hasMadeFirstPurchase: true)
+        let (vm, _, _, _) = makeViewModel(balance: 12_000)
         #expect(vm.balance == 12_000)
-        #expect(vm.hasMadeFirstPurchase == true)
         #expect(vm.bundles.count == 5)
         #expect(vm.bundles == ChipBundleCatalog.all) // placeholder render before loadProducts
-    }
-
-    @Test("Doubler is active by default for a fresh install")
-    func doublerActiveByDefault() {
-        let (vm, _, _, _) = makeViewModel(hasMadeFirstPurchase: false)
-        #expect(vm.doublerActive == true)
-    }
-
-    @Test("Doubler is inactive once hasMadeFirstPurchase is set")
-    func doublerInactiveAfterFirstPurchase() {
-        let (vm, _, _, _) = makeViewModel(hasMadeFirstPurchase: true)
-        #expect(vm.doublerActive == false)
-    }
-
-    // MARK: - Display math
-
-    @Test("displayAmount doubles the bundle while the doubler is active")
-    func displayAmountDoublesUntilFirstPurchase() {
-        let (vm, _, _, _) = makeViewModel(hasMadeFirstPurchase: false)
-        let bundle = ChipBundleCatalog.starter
-        #expect(vm.displayAmount(for: bundle) == bundle.chipAmount * 2)
-        #expect(vm.strikethroughAmount(for: bundle) == bundle.chipAmount)
-    }
-
-    @Test("displayAmount returns the base amount once the doubler is consumed")
-    func displayAmountAtBaseAfterFirstPurchase() {
-        let (vm, _, _, _) = makeViewModel(hasMadeFirstPurchase: true)
-        let bundle = ChipBundleCatalog.starter
-        #expect(vm.displayAmount(for: bundle) == bundle.chipAmount)
-        #expect(vm.strikethroughAmount(for: bundle) == nil)
     }
 
     // MARK: - Load products
@@ -98,22 +65,20 @@ struct ChipShopViewModelTests {
 
     // MARK: - Purchase paths
 
-    @Test("Successful purchase credits chips, refreshes balance, flips doubler, and fires .success haptic")
+    @Test("Successful purchase credits the nominal chips, refreshes balance, and fires .success haptic")
     func successfulPurchase() async {
         let (vm, store, _, haptics) = makeViewModel(balance: 1_000, scriptedPurchase: .success)
         let bundle = ChipBundleCatalog.starter
 
         await vm.purchase(bundle)
 
-        #expect(store.chipBalance == 1_000 + bundle.chipAmount * 2)
+        #expect(store.chipBalance == 1_000 + bundle.chipAmount)
         #expect(vm.balance == store.chipBalance)
-        #expect(vm.hasMadeFirstPurchase == true)
-        #expect(vm.doublerActive == false)
         #expect(haptics.events.contains(.notification(.success)))
         #expect(vm.errorMessage(for: bundle) == nil)
     }
 
-    @Test("User-cancelled purchase leaves balance and flag untouched and fires no haptic")
+    @Test("User-cancelled purchase leaves balance untouched and fires no haptic")
     func userCancelledPurchase() async {
         let (vm, store, _, haptics) = makeViewModel(scriptedPurchase: .userCancelled)
         let bundle = ChipBundleCatalog.starter
@@ -122,7 +87,6 @@ struct ChipShopViewModelTests {
         await vm.purchase(bundle)
 
         #expect(store.chipBalance == before)
-        #expect(vm.hasMadeFirstPurchase == false)
         #expect(haptics.events.isEmpty)
     }
 
@@ -184,7 +148,7 @@ struct ChipShopViewModelTests {
         await vm.purchase(bundle)
 
         #expect(iap.purchaseCallCount == 2)
-        #expect(vm.balance == bundle.chipAmount * 2) // first credit only (doubled)
+        #expect(vm.balance == bundle.chipAmount) // first credit only
     }
 
     // MARK: - Restore

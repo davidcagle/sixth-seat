@@ -9,12 +9,11 @@ import TelemetryDeck
 /// launch, ahead of the IAP listener — so background-task IAP
 /// completions dispatch to a live SDK.
 ///
-/// Chip amounts are derived from `ChipBundleCatalog` rather than
-/// threaded through the existing `purchaseSucceeded` signature. This
-/// keeps the Session 16 protocol drop-in compatible (no signature
-/// changes) while still landing rich purchase metadata on the wire —
+/// The chip amount is derived from `ChipBundleCatalog` at telemetry
+/// time rather than threaded through the `purchaseSucceeded` signature —
 /// the catalog is the canonical source for what each product ID is
-/// worth in chips, so re-deriving it at telemetry time is correct.
+/// worth in chips, so re-deriving it here keeps the protocol surface
+/// minimal.
 ///
 /// Signal-name convention (`namespace.event`):
 ///   - `iap.purchase.initiated`
@@ -42,12 +41,11 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
         )
     }
 
-    public func purchaseSucceeded(productID: String, isFirstPurchase: Bool) {
+    public func purchaseSucceeded(productID: String) {
         TelemetryDeck.signal(
             Self.purchaseSucceededSignal,
             parameters: Self.purchaseSucceededParameters(
                 productID: productID,
-                isFirstPurchase: isFirstPurchase,
                 catalog: catalog
             )
         )
@@ -108,17 +106,11 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
 
     public static func purchaseSucceededParameters(
         productID: String,
-        isFirstPurchase: Bool,
         catalog: [ChipBundle] = ChipBundleCatalog.all
     ) -> [String: String] {
-        let base = baseChipAmount(for: productID, in: catalog)
-        let total = isFirstPurchase ? base * 2 : base
         return [
             "product_id": productID,
-            "base_chip_amount": String(base),
-            "doublered_chip_amount": String(total),
-            "doubler_fired": isFirstPurchase ? "true" : "false",
-            "is_first_purchase": isFirstPurchase ? "true" : "false"
+            "chip_amount": String(chipAmount(for: productID, in: catalog))
         ]
     }
 
@@ -149,12 +141,12 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
         ]
     }
 
-    /// Resolves the base chip amount for a product ID through the
-    /// catalog snapshot. Returns 0 for an unknown ID rather than
-    /// crashing — TelemetryDeck would receive `"0"` on the metadata
-    /// payload and the unknown-product anomaly would show up in
-    /// dashboards as a clear signal rather than a silent crash.
-    private static func baseChipAmount(for productID: String, in catalog: [ChipBundle]) -> Int {
+    /// Resolves the chip amount for a product ID through the catalog
+    /// snapshot. Returns 0 for an unknown ID rather than crashing —
+    /// TelemetryDeck would receive `"0"` on the metadata payload and the
+    /// unknown-product anomaly would show up in dashboards as a clear
+    /// signal rather than a silent crash.
+    private static func chipAmount(for productID: String, in catalog: [ChipBundle]) -> Int {
         catalog.first(where: { $0.id == productID })?.chipAmount ?? 0
     }
 }

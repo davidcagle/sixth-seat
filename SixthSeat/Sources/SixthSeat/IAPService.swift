@@ -4,9 +4,10 @@ import Foundation
 /// `StoreKitIAPService` (real StoreKit 2); tests conform via
 /// `InMemoryIAPService` (configurable success / cancel / failure paths).
 ///
-/// All four chip-credit invariants live in `ChipPurchaseProcessor` so
-/// both implementations route success paths through the same code —
-/// the test double cannot drift from production semantics.
+/// The chip-credit invariant (idempotency) lives in
+/// `ChipPurchaseProcessor` so both implementations route success paths
+/// through the same code — the test double cannot drift from production
+/// semantics.
 public protocol IAPService: AnyObject, Sendable {
 
     /// Refresh `localizedPrice` for every catalog tier from the App
@@ -15,20 +16,19 @@ public protocol IAPService: AnyObject, Sendable {
     /// catalog placeholder.
     func loadProducts() async throws -> [ChipBundle]
 
-    /// Initiate a purchase for the given bundle. Crediting (with
-    /// idempotency + first-purchase doubler) is performed inside the
+    /// Initiate a purchase for the given bundle. Crediting (idempotent
+    /// via the processed-transaction guard) is performed inside the
     /// service before returning so the caller can rely on
     /// `chipStore.chipBalance` reflecting the new total on
-    /// `.success`. The returned `creditedAmount` is the post-doubler
-    /// figure; `0` when the transaction was already processed
+    /// `.success`. The returned `creditedAmount` is the tier's nominal
+    /// chip amount; `0` when the transaction was already processed
     /// (deduped).
     func purchase(_ bundle: ChipBundle) async throws -> PurchaseResult
 
     /// Apple-required restore affordance. For consumables this is
     /// mostly a no-op — finished consumable transactions do not
     /// re-emit. The implementation flushes pending unfinished
-    /// transactions through the same credit path (with `isRestore =
-    /// true` so the doubler does not re-fire) and returns the count
+    /// transactions through the same credit path and returns the count
     /// that actually credited chips on this call.
     func restore() async throws -> Int
 
@@ -43,7 +43,7 @@ public protocol IAPService: AnyObject, Sendable {
 /// (Ask to Buy / parental approval), or failure — plus a structured
 /// error case for surfacing UX-relevant copy.
 public enum PurchaseResult: Equatable, Sendable {
-    case success(creditedAmount: Int, isFirstPurchase: Bool)
+    case success(creditedAmount: Int)
     case userCancelled
     case pending
     case failed(IAPError)
@@ -116,12 +116,12 @@ public final class InMemoryIAPService: IAPService, @unchecked Sendable {
                 store: chipStore
             )
             switch outcome {
-            case .credited(let amount, let isFirstPurchase):
-                telemetry.purchaseSucceeded(productID: bundle.id, isFirstPurchase: isFirstPurchase)
-                return .success(creditedAmount: amount, isFirstPurchase: isFirstPurchase)
+            case .credited(let amount):
+                telemetry.purchaseSucceeded(productID: bundle.id)
+                return .success(creditedAmount: amount)
             case .alreadyProcessed:
-                telemetry.purchaseSucceeded(productID: bundle.id, isFirstPurchase: false)
-                return .success(creditedAmount: 0, isFirstPurchase: false)
+                telemetry.purchaseSucceeded(productID: bundle.id)
+                return .success(creditedAmount: 0)
             }
         case .userCancelled:
             return .userCancelled

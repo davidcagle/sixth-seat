@@ -7,41 +7,24 @@ struct TelemetryDeckTelemetryServiceTests {
 
     // MARK: - IAP payload shape
 
-    @Test("purchase.succeeded carries product_id, base + doublered chip amounts, doubler_fired, and is_first_purchase")
+    @Test("purchase.succeeded carries product_id and the tier's chip_amount")
     func purchaseSucceededPayloadShape() {
         let bundle = ChipBundleCatalog.starter
         let params = TelemetryDeckTelemetryService.purchaseSucceededParameters(
-            productID: bundle.id,
-            isFirstPurchase: true
+            productID: bundle.id
         )
         #expect(params["product_id"] == bundle.id)
-        #expect(params["base_chip_amount"] == String(bundle.chipAmount))
-        #expect(params["doublered_chip_amount"] == String(bundle.chipAmount * 2))
-        #expect(params["doubler_fired"] == "true")
-        #expect(params["is_first_purchase"] == "true")
+        #expect(params["chip_amount"] == String(bundle.chipAmount))
+        // Doubler-era params are gone — the payload is just id + amount.
+        #expect(params.count == 2)
     }
 
-    @Test("purchase.succeeded with isFirstPurchase=false reports doubler_fired=false and base==doublered")
-    func purchaseSucceededDoublerDidNotFire() {
-        let bundle = ChipBundleCatalog.tableStakes
-        let params = TelemetryDeckTelemetryService.purchaseSucceededParameters(
-            productID: bundle.id,
-            isFirstPurchase: false
-        )
-        #expect(params["doubler_fired"] == "false")
-        #expect(params["is_first_purchase"] == "false")
-        #expect(params["base_chip_amount"] == String(bundle.chipAmount))
-        #expect(params["doublered_chip_amount"] == String(bundle.chipAmount))
-    }
-
-    @Test("purchase.succeeded returns base_chip_amount = 0 for an unknown product (defensive fallback)")
+    @Test("purchase.succeeded returns chip_amount = 0 for an unknown product (defensive fallback)")
     func purchaseSucceededUnknownProductIDFallsBackToZero() {
         let params = TelemetryDeckTelemetryService.purchaseSucceededParameters(
-            productID: "com.sixthseat.uth.chips.ghost",
-            isFirstPurchase: false
+            productID: "com.sixthseat.uth.chips.ghost"
         )
-        #expect(params["base_chip_amount"] == "0")
-        #expect(params["doublered_chip_amount"] == "0")
+        #expect(params["chip_amount"] == "0")
     }
 
     @Test("purchase.initiated and purchase.failed carry product_id (and reason for failed)")
