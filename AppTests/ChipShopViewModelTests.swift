@@ -100,24 +100,41 @@ struct ChipShopViewModelTests {
         #expect(vm.errorMessage(for: bundle) == "Purchase pending approval.")
     }
 
-    @Test("Verification failure surfaces a generic Try again message")
+    @Test("Verification failure surfaces the cause-specific verification message")
     func verificationFailurePurchase() async {
         let (vm, _, _, _) = makeViewModel(scriptedPurchase: .verificationFailure)
         let bundle = ChipBundleCatalog.starter
 
         await vm.purchase(bundle)
 
-        #expect(vm.errorMessage(for: bundle) == "Purchase failed. Try again.")
+        #expect(vm.errorMessage(for: bundle) == "Purchase failed: the transaction couldn't be verified. Try again.")
     }
 
-    @Test("Network error surfaces the same generic Try again message")
+    @Test("Network error surfaces the connectivity-specific message")
     func networkErrorPurchase() async {
         let (vm, _, _, _) = makeViewModel(scriptedPurchase: .networkError)
         let bundle = ChipBundleCatalog.starter
 
         await vm.purchase(bundle)
 
-        #expect(vm.errorMessage(for: bundle) == "Purchase failed. Try again.")
+        #expect(vm.errorMessage(for: bundle) == "No internet connection. Check your connection and try again.")
+    }
+
+    @Test("Each IAPError surfaces its own actionable line, not a generic fallback")
+    func distinctFailureMessages() async {
+        let cases: [(IAPError, String)] = [
+            (.notEntitled, "You're not signed into the App Store. Check Settings → App Store."),
+            (.productUnavailable, "This chip pack is temporarily unavailable. Try again in a few minutes."),
+            (.paymentNotAllowed, "Purchases are restricted on this device (parental controls)."),
+            (.paymentInvalid, "Your payment method was declined. Update payment in Settings → App Store."),
+            (.unknown("Boom"), "Purchase failed: Boom. Try again.")
+        ]
+        for (error, expected) in cases {
+            let (vm, _, _, _) = makeViewModel(scriptedPurchase: .failure(error))
+            let bundle = ChipBundleCatalog.starter
+            await vm.purchase(bundle)
+            #expect(vm.errorMessage(for: bundle) == expected)
+        }
     }
 
     @Test("Error for a tier is cleared on the next purchase attempt for that tier")
@@ -126,7 +143,7 @@ struct ChipShopViewModelTests {
         let bundle = ChipBundleCatalog.starter
 
         await vm.purchase(bundle)
-        #expect(vm.errorMessage(for: bundle) == "Purchase failed. Try again.")
+        #expect(vm.errorMessage(for: bundle) == "No internet connection. Check your connection and try again.")
 
         iap.nextPurchaseResult = .success
         await vm.purchase(bundle)

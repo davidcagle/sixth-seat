@@ -51,12 +51,21 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
         do {
             products = try await Product.products(for: [bundle.id])
         } catch {
-            telemetry.purchaseFailed(productID: bundle.id, reason: "load: \(error.localizedDescription)")
-            return .failed(.networkError)
+            let iapError = Self.mapStoreKitError(error)
+            telemetry.purchaseFailed(
+                productID: bundle.id,
+                errorType: iapError.telemetryType,
+                description: "load: \(error.localizedDescription)"
+            )
+            return .failed(iapError)
         }
 
         guard let product = products.first else {
-            telemetry.purchaseFailed(productID: bundle.id, reason: "productNotFound")
+            telemetry.purchaseFailed(
+                productID: bundle.id,
+                errorType: IAPError.productNotFound.telemetryType,
+                description: "no product returned for \(bundle.id)"
+            )
             return .failed(.productNotFound)
         }
 
@@ -64,8 +73,19 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
         do {
             result = try await product.purchase()
         } catch {
-            telemetry.purchaseFailed(productID: bundle.id, reason: error.localizedDescription)
-            return .failed(.unknown(error.localizedDescription))
+            // A cancel thrown from `purchase()` is a user action, not a
+            // failure — surface it silently like the `.userCancelled`
+            // result case below rather than logging a failure.
+            if let skError = error as? StoreKitError, case .userCancelled = skError {
+                return .userCancelled
+            }
+            let iapError = Self.mapStoreKitError(error)
+            telemetry.purchaseFailed(
+                productID: bundle.id,
+                errorType: iapError.telemetryType,
+                description: error.localizedDescription
+            )
+            return .failed(iapError)
         }
 
         switch result {
@@ -79,9 +99,60 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
             return .pending
 
         @unknown default:
-            telemetry.purchaseFailed(productID: bundle.id, reason: "unknownStoreKitResult")
+            telemetry.purchaseFailed(
+                productID: bundle.id,
+                errorType: IAPError.unknown("unknownStoreKitResult").telemetryType,
+                description: "unknown StoreKit purchase result"
+            )
             return .failed(.unknown("unknown StoreKit result"))
         }
+    }
+
+    /// Translate a thrown StoreKit error into the engine's structured
+    /// `IAPError` so the Chip Shop can show a cause-specific line. Covers
+    /// both `StoreKitError` (storefront / entitlement / connectivity) and
+    /// `Product.PurchaseError` (purchase-flow rejections); anything else
+    /// falls through to `.unknown` carrying the raw description.
+    static func mapStoreKitError(_ error: Error) -> IAPError {
+        if let skError = error as? StoreKitError {
+            switch skError {
+            case .networkError:
+                return .networkError
+            case .notEntitled:
+                return .notEntitled
+            case .notAvailableInStorefront:
+                return .productUnavailable
+            case .userCancelled:
+                // Callers handle cancel before reaching here; if it does
+                // arrive, treat it as a non-actionable unknown rather than
+                // inventing a failure line.
+                return .unknown("userCancelled")
+            case .systemError, .unknown:
+                return .unknown(error.localizedDescription)
+            @unknown default:
+                return .unknown(error.localizedDescription)
+            }
+        }
+
+        if let purchaseError = error as? Product.PurchaseError {
+            switch purchaseError {
+            case .productUnavailable:
+                return .productUnavailable
+            case .purchaseNotAllowed:
+                return .paymentNotAllowed
+            case .invalidQuantity,
+                 .ineligibleForOffer,
+                 .invalidOfferIdentifier,
+                 .invalidOfferPrice,
+                 .invalidOfferSignature,
+                 .missingOfferParameters:
+                return .unknown(error.localizedDescription)
+            @unknown default:
+                return .unknown(error.localizedDescription)
+            }
+        }
+
+        return .unknown(error.localizedDescription)
     }
 
     public func restore() async throws -> Int {
@@ -155,7 +226,11 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
             }
 
         case .unverified(_, let error):
-            telemetry.purchaseFailed(productID: bundle.id, reason: "verification: \(error.localizedDescription)")
+            telemetry.purchaseFailed(
+                productID: bundle.id,
+                errorType: IAPError.verificationFailed.telemetryType,
+                description: "verification: \(error.localizedDescription)"
+            )
             return .failed(.verificationFailed)
         }
     }

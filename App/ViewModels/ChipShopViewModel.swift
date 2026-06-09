@@ -27,8 +27,8 @@ final class ChipShopViewModel {
     private(set) var loadingBundleID: String?
 
     /// Per-bundle inline error string. Cleared on the next purchase
-    /// attempt for that tier. The view collapses every failure mode to
-    /// the same generic "Purchase failed. Try again." copy.
+    /// attempt for that tier. The copy is cause-specific, derived from
+    /// the `IAPError` via `ChipShopLogic.purchaseFailureMessage`.
     private(set) var errorByBundleID: [String: String] = [:]
 
     private(set) var isRestoring: Bool = false
@@ -83,11 +83,14 @@ final class ChipShopViewModel {
                 break
             case .pending:
                 errorByBundleID[bundle.id] = "Purchase pending approval."
-            case .failed:
-                errorByBundleID[bundle.id] = "Purchase failed. Try again."
+            case .failed(let error):
+                errorByBundleID[bundle.id] = ChipShopLogic.purchaseFailureMessage(for: error)
             }
         } catch {
-            errorByBundleID[bundle.id] = "Purchase failed. Try again."
+            // The production service maps every failure into `.failed`
+            // above; a thrown error means an unexpected boundary fault.
+            // Surface its real description rather than a blind retry.
+            errorByBundleID[bundle.id] = "Purchase failed: \(error.localizedDescription). Try again."
         }
 
         loadingBundleID = nil

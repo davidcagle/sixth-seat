@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import TelemetryDeck
 
 /// Production `TelemetryService`: maps each protocol call to a
@@ -26,6 +27,13 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
 
     private let catalog: [ChipBundle]
 
+    /// Mirrors failed purchases to the unified log in addition to the
+    /// TelemetryDeck signal. Release builds use this service (DEBUG uses
+    /// `LoggingTelemetryService`), so without this the real StoreKit
+    /// error would be invisible in Console.app on a TestFlight device —
+    /// the network-only TelemetryDeck path can't be read at the desk.
+    private let logger = Logger(subsystem: "com.sixthseat.uth", category: "iap")
+
     /// Snapshots the catalog at construction so chip amounts can be
     /// derived from product IDs on hot paths without reloading.
     public init(catalog: [ChipBundle] = ChipBundleCatalog.all) {
@@ -51,10 +59,15 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
         )
     }
 
-    public func purchaseFailed(productID: String, reason: String) {
+    public func purchaseFailed(productID: String, errorType: String, description: String) {
+        logger.error("purchase_failed product=\(productID, privacy: .public) error_type=\(errorType, privacy: .public) error_description=\(description, privacy: .public)")
         TelemetryDeck.signal(
             Self.purchaseFailedSignal,
-            parameters: Self.purchaseFailedParameters(productID: productID, reason: reason)
+            parameters: Self.purchaseFailedParameters(
+                productID: productID,
+                errorType: errorType,
+                description: description
+            )
         )
     }
 
@@ -114,10 +127,15 @@ public struct TelemetryDeckTelemetryService: TelemetryService {
         ]
     }
 
-    public static func purchaseFailedParameters(productID: String, reason: String) -> [String: String] {
+    public static func purchaseFailedParameters(
+        productID: String,
+        errorType: String,
+        description: String
+    ) -> [String: String] {
         [
             "product_id": productID,
-            "reason": reason
+            "error_type": errorType,
+            "error_description": description
         ]
     }
 

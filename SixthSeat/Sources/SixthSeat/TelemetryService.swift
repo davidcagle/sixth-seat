@@ -12,7 +12,12 @@ import OSLog
 public protocol TelemetryService: Sendable {
     func purchaseInitiated(productID: String)
     func purchaseSucceeded(productID: String)
-    func purchaseFailed(productID: String, reason: String)
+
+    /// Records a failed purchase. `errorType` is the stable
+    /// `IAPError.telemetryType` token for dashboard aggregation;
+    /// `description` is the human-readable detail (the underlying
+    /// StoreKit `localizedDescription` where one exists).
+    func purchaseFailed(productID: String, errorType: String, description: String)
     func restoreInitiated()
     func restoreCompleted(count: Int)
 
@@ -69,8 +74,8 @@ public struct LoggingTelemetryService: TelemetryService {
         logger.notice("purchase_succeeded product=\(productID, privacy: .public)")
     }
 
-    public func purchaseFailed(productID: String, reason: String) {
-        logger.error("purchase_failed product=\(productID, privacy: .public) reason=\(reason, privacy: .public)")
+    public func purchaseFailed(productID: String, errorType: String, description: String) {
+        logger.error("purchase_failed product=\(productID, privacy: .public) error_type=\(errorType, privacy: .public) error_description=\(description, privacy: .public)")
     }
 
     public func restoreInitiated() {
@@ -101,7 +106,7 @@ public final class RecordingTelemetryService: TelemetryService, @unchecked Senda
     public enum Event: Equatable, Sendable {
         case purchaseInitiated(productID: String)
         case purchaseSucceeded(productID: String)
-        case purchaseFailed(productID: String, reason: String)
+        case purchaseFailed(productID: String, errorType: String, description: String)
         case restoreInitiated
         case restoreCompleted(count: Int)
         case handResolved(
@@ -144,8 +149,8 @@ public final class RecordingTelemetryService: TelemetryService, @unchecked Senda
         append(.purchaseSucceeded(productID: productID))
     }
 
-    public func purchaseFailed(productID: String, reason: String) {
-        append(.purchaseFailed(productID: productID, reason: reason))
+    public func purchaseFailed(productID: String, errorType: String, description: String) {
+        append(.purchaseFailed(productID: productID, errorType: errorType, description: description))
     }
 
     public func restoreInitiated() {

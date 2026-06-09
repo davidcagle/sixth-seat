@@ -49,14 +49,37 @@ public enum PurchaseResult: Equatable, Sendable {
     case failed(IAPError)
 }
 
-/// Failure modes the Chip Shop view distinguishes. `unknown` carries
-/// a free-form description for telemetry; the UI collapses everything
-/// to a single "Purchase failed. Try again." line.
+/// Failure modes the Chip Shop view distinguishes. Each case maps to a
+/// dedicated user-facing line via `ChipShopLogic.purchaseFailureMessage`
+/// and to a stable `telemetryType` token on the `iap.purchase.failed`
+/// signal. `unknown` carries a free-form description (the underlying
+/// StoreKit `localizedDescription`) for the default "Purchase failed:
+/// …" copy and the `error_description` telemetry parameter.
 public enum IAPError: Error, Equatable, Sendable {
     case productNotFound
-    case verificationFailed
+    case productUnavailable
+    case notEntitled
+    case paymentNotAllowed
+    case paymentInvalid
     case networkError
+    case verificationFailed
     case unknown(String)
+
+    /// Stable, low-cardinality token for the `error_type` telemetry
+    /// parameter. Deliberately decoupled from the Swift case name so a
+    /// future enum rename can't silently break dashboard aggregation.
+    public var telemetryType: String {
+        switch self {
+        case .productNotFound: return "productNotFound"
+        case .productUnavailable: return "productUnavailable"
+        case .notEntitled: return "notEntitled"
+        case .paymentNotAllowed: return "paymentNotAllowed"
+        case .paymentInvalid: return "paymentInvalid"
+        case .networkError: return "networkError"
+        case .verificationFailed: return "verificationFailed"
+        case .unknown: return "unknown"
+        }
+    }
 }
 
 /// Configurable test double. Tests script `nextPurchaseResult` to
@@ -70,6 +93,10 @@ public final class InMemoryIAPService: IAPService, @unchecked Sendable {
         case pending
         case verificationFailure
         case networkError
+        /// Inject an arbitrary structured failure so tests can exercise
+        /// the per-case user copy without depending on real StoreKit
+        /// error values (which are impractical to construct in tests).
+        case failure(IAPError)
     }
 
     public var catalog: [ChipBundle]
@@ -128,12 +155,24 @@ public final class InMemoryIAPService: IAPService, @unchecked Sendable {
         case .pending:
             return .pending
         case .verificationFailure:
-            telemetry.purchaseFailed(productID: bundle.id, reason: "verificationFailed")
-            return .failed(.verificationFailed)
+            return reportFailure(.verificationFailed, productID: bundle.id)
         case .networkError:
-            telemetry.purchaseFailed(productID: bundle.id, reason: "networkError")
-            return .failed(.networkError)
+            return reportFailure(.networkError, productID: bundle.id)
+        case .failure(let error):
+            return reportFailure(error, productID: bundle.id)
         }
+    }
+
+    /// Emit the failure telemetry and wrap the error in a `PurchaseResult`
+    /// using the same `errorType`/`description` shape the production
+    /// service uses, so the test double can't drift from it.
+    private func reportFailure(_ error: IAPError, productID: String) -> PurchaseResult {
+        telemetry.purchaseFailed(
+            productID: productID,
+            errorType: error.telemetryType,
+            description: error.telemetryType
+        )
+        return .failed(error)
     }
 
     public func restore() async throws -> Int {

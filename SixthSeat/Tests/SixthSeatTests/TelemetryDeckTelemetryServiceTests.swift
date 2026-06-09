@@ -27,17 +27,20 @@ struct TelemetryDeckTelemetryServiceTests {
         #expect(params["chip_amount"] == "0")
     }
 
-    @Test("purchase.initiated and purchase.failed carry product_id (and reason for failed)")
+    @Test("purchase.initiated and purchase.failed carry product_id (plus error_type/error_description for failed)")
     func purchaseInitiatedAndFailedPayloads() {
         let init1 = TelemetryDeckTelemetryService.purchaseInitiatedParameters(productID: "p1")
         #expect(init1 == ["product_id": "p1"])
 
         let failed = TelemetryDeckTelemetryService.purchaseFailedParameters(
             productID: "p1",
-            reason: "networkError"
+            errorType: "networkError",
+            description: "The Internet connection appears to be offline."
         )
         #expect(failed["product_id"] == "p1")
-        #expect(failed["reason"] == "networkError")
+        #expect(failed["error_type"] == "networkError")
+        #expect(failed["error_description"] == "The Internet connection appears to be offline.")
+        #expect(failed["reason"] == nil) // old param name retired
     }
 
     @Test("restore.completed carries credited_count")

@@ -92,7 +92,7 @@ struct InMemoryIAPServiceTests {
 
         #expect(result == .failed(.verificationFailed))
         #expect(store.chipBalance == 0)
-        #expect(telemetry.events.contains(.purchaseFailed(productID: bundle.id, reason: "verificationFailed")))
+        #expect(telemetry.events.contains(.purchaseFailed(productID: bundle.id, errorType: "verificationFailed", description: "verificationFailed")))
     }
 
     @Test("Network error returns .failed(.networkError) and records the failure telemetry")
@@ -104,7 +104,7 @@ struct InMemoryIAPServiceTests {
 
         #expect(result == .failed(.networkError))
         #expect(store.chipBalance == 0)
-        #expect(telemetry.events.contains(.purchaseFailed(productID: bundle.id, reason: "networkError")))
+        #expect(telemetry.events.contains(.purchaseFailed(productID: bundle.id, errorType: "networkError", description: "networkError")))
     }
 
     @Test("A duplicate successful purchase (same nextTransactionID) credits once and reports 0 on the dedup")
