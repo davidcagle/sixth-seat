@@ -263,6 +263,7 @@ Decisions made in chat that previously drifted between SPEC.md, Fiverr brief, an
 * Age rating: 17+ (simulated gambling)
 * Must comply with Apple Guidelines section 4.3 (simulated gambling)
 * Privacy policy required
+* **Privacy manifest in place** — `App/PrivacyInfo.xcprivacy`, bundled in the SixthSeatApp target's Copy Bundle Resources phase. Declares `NSPrivacyTracking = false`, empty `NSPrivacyTrackingDomains`, and one `NSPrivacyAccessedAPITypes` entry: `NSPrivacyAccessedAPICategoryUserDefaults` with reason `CA92.1` (app storing its own preferences — all usage is `UserDefaults.standard`, no App Group / suite, so `CA92.1` not `1C8F.1`). UserDefaults is the only Required Reason API in first-party code (no file-timestamp / boot-time / disk-space / active-keyboard APIs). **Intentionally minimal (option B, strict first-party scope):** `NSPrivacyCollectedDataTypes` is empty even though the ASC App Privacy label publishes Device ID + Product Interaction (Analytics, Not Linked, Not Tracking). That collection is performed by TelemetryDeck, which declares it in its *own* shipped `PrivacyInfo.xcprivacy`; Apple aggregates the app + SDK manifests for the user-facing privacy report, so the ASC label is already satisfied. Duplicating those data types here (option A) would create two sources of truth that can drift when the SDK updates, so we deliberately let TelemetryDeck own that disclosure.
 * No real-money gambling language or imagery
 
 ## Development Priorities (build order)

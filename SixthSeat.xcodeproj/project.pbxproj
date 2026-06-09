@@ -38,6 +38,7 @@
 		C000000000000000000002CC1 /* AudioServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000002FB1 /* AudioServiceTests.swift */; };
 		C000000000000000000003C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000004B1 /* Assets.xcassets */; };
 		C000000000000000000004C1 /* Disclosures.plist in Resources */ = {isa = PBXBuildFile; fileRef = B000000000000000000003B1 /* Disclosures.plist */; };
+		C0000000000000000000ABCD1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000ABCD1 /* PrivacyInfo.xcprivacy */; };
 		C000000000000000000005C1 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000005B1 /* SmokeTests.swift */; };
 		C000000000000000000006C1 /* SixthSeat in Frameworks */ = {isa = PBXBuildFile; productRef = E100000000000000000001E1 /* SixthSeat */; };
 		C000000000000000000007C1 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000000000000000000009B1 /* CardView.swift */; };
@@ -95,6 +96,7 @@
 		B000000000000000000002EB1 /* Resources/Audio */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/Audio; sourceTree = "<group>"; };
 		B000000000000000000002FB1 /* AudioServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioServiceTests.swift; sourceTree = "<group>"; };
 		B000000000000000000003B1 /* Disclosures.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Disclosures.plist; sourceTree = "<group>"; };
+		B0000000000000000000ABCD1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B000000000000000000004B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B000000000000000000005B1 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 		B000000000000000000006B1 /* SixthSeatApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SixthSeatApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -158,6 +160,7 @@
 				B000000000000000000004B1 /* Assets.xcassets */,
 				B000000000000000000002EB1 /* Resources/Audio */,
 				B000000000000000000003B1 /* Disclosures.plist */,
+				B0000000000000000000ABCD1 /* PrivacyInfo.xcprivacy */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -310,6 +313,7 @@
 			files = (
 				C000000000000000000003C1 /* Assets.xcassets in Resources */,
 				C000000000000000000004C1 /* Disclosures.plist in Resources */,
+				C0000000000000000000ABCD1 /* PrivacyInfo.xcprivacy in Resources */,
 				C000000000000000000002BC1 /* Resources/Audio in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
