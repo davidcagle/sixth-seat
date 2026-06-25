@@ -2,7 +2,50 @@
 
 Running session log: what shipped, what's next, open items. Updated every session. Architectural decisions live in `SPEC.md`. This file is operational state only.
 
-**Last updated:** 2026-06-09 (Session 39 — surfaced real StoreKit errors in the IAP flow: cause-specific Chip Shop copy via `ChipShopLogic.purchaseFailureMessage`, `StoreKitError`/`Product.PurchaseError` mapping, `iap.purchase.failed` now carries `error_type` + `error_description`, and TelemetryDeck failures now also write OSLog so Console works on a Release/TestFlight device)
+---
+
+## ⏸ PAUSED — LLC Enrollment in Progress
+
+**Pause date:** 2026-06-25 — the day David received the Apple App Review rejection ("simulated gambling apps are no longer permitted from individual developer accounts"). LLC formation, EIN issuance, the LLC Apple ID, and the DUNS submission all happened the same day in rapid succession, so the pause start and the infrastructure-in-motion date are identical: **2026-06-25**.
+
+The app is mid-submission and on hold pending Apple Developer **organization** account enrollment under the new LLC. **Do not modify code, do not archive new builds, do not change ASC configuration.** Build 5 in TestFlight is the build that will ship.
+
+**Expected resume window:**
+- Earliest: **~2026-07-30** (roughly 5 weeks from pause)
+- Latest: **~2026-08-13** (roughly 6–7 weeks from pause)
+
+**Status (all as of 2026-06-25):**
+- LLC formed: 6th Seat Development LLC (Arkansas, single-member, member-managed)
+- Northwest Registered Agent active (~$125/year)
+- EIN obtained from IRS
+- LLC's Apple ID created: 6thseatholdem@gmail.com (separate from individual developer Apple ID)
+- DUNS application submitted via Apple's portal — awaiting issuance (5–14 business days)
+
+**Critical path to launch:**
+1. DUNS issues
+2. Apple Developer organization enrollment ($99/year, separate from individual account, 1–2 weeks Apple verification)
+3. App transfer from individual → LLC account (1–3 business days once both accounts exist)
+4. Resubmit Build 5 under LLC account
+5. Apple App Review (1–3 days typical)
+6. Manual release
+
+**Resume readiness checklist** — the four external gates that must all be cleared before the pause is liftable. A resuming session can tick these off to know objectively whether work may continue, rather than re-deriving the state from chat history:
+- [ ] **DUNS issued** — D-U-N-S number received from Dun & Bradstreet via Apple's portal
+- [ ] **Apple org enrollment approved** — 6th Seat Development LLC organization account active in Apple Developer ($99/year, Apple verification complete)
+- [ ] **App transferred to LLC account** — 6th Seat Hold'em moved from the individual developer account to the LLC organization account
+- [ ] **ASC IAPs/metadata verified under LLC account** — in-app purchases, pricing, and App Store listing metadata confirmed intact in App Store Connect under the LLC account post-transfer
+
+When all four boxes are checked, the pause is liftable and Build 5 can be resubmitted under the LLC account.
+
+**Engagement note:** David is intentionally not engaging with this project's codebase during the pause. If a code-related question about the codebase arises in a chat session, **defer it** — do not start coding work. If something genuinely blocks resume (e.g., Apple requests a code change as a condition of the LLC transfer or org review), **flag it explicitly** rather than acting on it.
+
+**Do not start new code sessions on this project until the Resume readiness checklist above is fully checked.** See SPEC.md "Distribution Account Decision" section for full reasoning.
+
+---
+
+**Last updated:** 2026-06-25 (Session 40b — added concrete pause start date, expected resume window, and the four-item Resume readiness checklist to the PAUSED banner)
+
+**Previous update:** 2026-06-09 (Session 39 — surfaced real StoreKit errors in the IAP flow: cause-specific Chip Shop copy via `ChipShopLogic.purchaseFailureMessage`, `StoreKitError`/`Product.PurchaseError` mapping, `iap.purchase.failed` now carries `error_type` + `error_description`, and TelemetryDeck failures now also write OSLog so Console works on a Release/TestFlight device)
 
 **Project completion estimate:** ~98% complete
 
