@@ -15,7 +15,7 @@ public enum BonusLogic {
     @discardableResult
     public static func applyStarterBonusIfEligible(store: ChipStoreProtocol) -> Bool {
         guard !store.hasReceivedStarterBonus else { return false }
-        store.chipBalance += starterBonusAmount
+        guard store.adjustChipBalance(by: starterBonusAmount) else { return false }
         store.hasReceivedStarterBonus = true
         return true
     }
@@ -31,7 +31,7 @@ public enum BonusLogic {
               !store.hasReceivedSecondChanceBonus else {
             return false
         }
-        store.chipBalance += secondChanceBonusAmount
+        guard store.adjustChipBalance(by: secondChanceBonusAmount) else { return false }
         store.hasReceivedSecondChanceBonus = true
         return true
     }

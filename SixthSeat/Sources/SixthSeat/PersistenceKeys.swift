@@ -9,6 +9,12 @@ public enum PersistenceKeys {
     public static let hasReceivedSecondChanceBonus = "com.sixthseat.uth.secondChanceBonus"
     public static let totalHandsPlayed = "com.sixthseat.uth.totalHandsPlayed"
 
+    /// One property-list value containing both chip balance and processed
+    /// transaction IDs. Keeping these fields in a single persisted value
+    /// makes an IAP credit durable as one write instead of two independently
+    /// persisted UserDefaults mutations.
+    public static let economyState = "com.sixthseat.uth.economyState"
+
     /// True once the player has acknowledged the first-launch Apple 4.3
     /// simulated-gambling disclosure. Gates the disclosure modal presentation.
     public static let hasSeenDisclosure = "com.sixthseat.uth.hasSeenDisclosure"

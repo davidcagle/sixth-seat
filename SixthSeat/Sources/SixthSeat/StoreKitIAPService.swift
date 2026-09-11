@@ -122,6 +122,8 @@ public final class StoreKitIAPService: IAPService, @unchecked Sendable {
                 return .notEntitled
             case .notAvailableInStorefront:
                 return .productUnavailable
+            case .unsupported:
+                return .productUnavailable
             case .userCancelled:
                 // Callers handle cancel before reaching here; if it does
                 // arrive, treat it as a non-actionable unknown rather than

@@ -23,17 +23,10 @@ public enum ChipPurchaseProcessor {
         isRestore: Bool,
         store: ChipStoreProtocol
     ) -> Outcome {
-        if store.processedTransactionIDs.contains(transactionID) {
+        let amount = bundle.chipAmount
+        guard store.creditPurchase(transactionID: transactionID, amount: amount) else {
             return .alreadyProcessed
         }
-
-        let amount = bundle.chipAmount
-        store.chipBalance += amount
-
-        var ids = store.processedTransactionIDs
-        ids.insert(transactionID)
-        store.processedTransactionIDs = ids
-
         return .credited(amount: amount)
     }
 }

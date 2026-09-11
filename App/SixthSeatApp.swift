@@ -29,11 +29,8 @@ struct SixthSeatApp: App {
     /// the IAP service's purchase events. (Session 19b)
     let telemetryService: TelemetryService
 
-    /// TelemetryDeck app ID. Hardcoded placeholder for Session 19b —
-    /// David will replace this with the real ID via App Store Connect /
-    /// TelemetryDeck dashboard before the first TestFlight upload.
-    /// The placeholder ships in the Release binary intentionally so the
-    /// `strings $RELEASE_BINARY` sanity-check in HANDOFF picks it up.
+    /// Production TelemetryDeck app ID for the project's authenticated
+    /// organization and dashboard.
     private static let telemetryDeckAppID = "C32C05E6-D241-4DCF-9543-8BEEB32CF53E"
 
     init() {

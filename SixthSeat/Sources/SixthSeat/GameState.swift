@@ -109,7 +109,9 @@ public final class GameState {
         guard availableAfterRefund >= required else {
             return .failure(.insufficientChips(required: required, available: availableAfterRefund))
         }
-        chipStore.chipBalance = availableAfterRefund - required
+        guard chipStore.adjustChipBalance(by: anteBet + blindBet - required) else {
+            return .failure(.insufficientChips(required: required, available: availableAfterRefund))
+        }
         anteBet = amount
         blindBet = amount
         return .success(())
@@ -123,7 +125,9 @@ public final class GameState {
         guard availableAfterRefund >= amount else {
             return .failure(.insufficientChips(required: amount, available: availableAfterRefund))
         }
-        chipStore.chipBalance = availableAfterRefund - amount
+        guard chipStore.adjustChipBalance(by: tripsBet - amount) else {
+            return .failure(.insufficientChips(required: amount, available: availableAfterRefund))
+        }
         tripsBet = amount
         return .success(())
     }
@@ -154,7 +158,9 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipStore.chipBalance -= required
+        guard chipStore.adjustChipBalance(by: -required) else {
+            return .failure(.insufficientChips(required: required, available: chipBalance))
+        }
         playBet = required
         resolve()
         return .success(())
@@ -172,7 +178,9 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipStore.chipBalance -= required
+        guard chipStore.adjustChipBalance(by: -required) else {
+            return .failure(.insufficientChips(required: required, available: chipBalance))
+        }
         playBet = required
         resolve()
         return .success(())
@@ -190,7 +198,9 @@ public final class GameState {
         guard chipBalance >= required else {
             return .failure(.insufficientChips(required: required, available: chipBalance))
         }
-        chipStore.chipBalance -= required
+        guard chipStore.adjustChipBalance(by: -required) else {
+            return .failure(.insufficientChips(required: required, available: chipBalance))
+        }
         playBet = required
         resolve()
         return .success(())
@@ -205,7 +215,7 @@ public final class GameState {
         let tripsOutcome = UTHRules.resolveTrips(player: playerHand)
         let tripsNet = BetResolution.netAmount(outcome: tripsOutcome, bet: Double(tripsBet))
 
-        chipStore.chipBalance += tripsBet + Int(tripsNet.rounded())
+        chipStore.adjustChipBalance(by: tripsBet + Int(tripsNet.rounded()))
 
         lastHandResult = HandResult(
             playerHand: playerHand,
@@ -244,10 +254,11 @@ public final class GameState {
         // Each wager returns (stake + net) to the chip stack: a win pays
         // 2× stake, a push pays 1× stake, a loss pays 0, and a Blind/Trips
         // bonus pays stake × (1 + multiplier).
-        chipStore.chipBalance += anteBet  + Int(result.anteNet.rounded())
-        chipStore.chipBalance += blindBet + Int(result.blindNet.rounded())
-        chipStore.chipBalance += playBet  + Int(result.playNet.rounded())
-        chipStore.chipBalance += tripsBet + Int(result.tripsNet.rounded())
+        let returnedChips = anteBet + Int(result.anteNet.rounded())
+            + blindBet + Int(result.blindNet.rounded())
+            + playBet + Int(result.playNet.rounded())
+            + tripsBet + Int(result.tripsNet.rounded())
+        chipStore.adjustChipBalance(by: returnedChips)
 
         lastHandResult = result
         chipStore.totalHandsPlayed += 1

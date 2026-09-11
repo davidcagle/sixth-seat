@@ -23,6 +23,17 @@ public protocol ChipStoreProtocol: AnyObject, Sendable {
     /// or Family Sharing redelivery. (Session 16)
     var processedTransactionIDs: Set<String> { get set }
 
+    /// Applies a signed balance delta as one synchronized operation.
+    /// Returns `false` without changing the balance when the adjustment
+    /// would make it negative.
+    @discardableResult
+    func adjustChipBalance(by delta: Int) -> Bool
+
+    /// Atomically deduplicates and credits an App Store transaction.
+    /// Returns `false` when `transactionID` was already processed.
+    @discardableResult
+    func creditPurchase(transactionID: String, amount: Int) -> Bool
+
     /// Clears every stored value back to defaults. Intended for tests
     /// and development tools — not for use in the shipping UI.
     func reset()
@@ -32,6 +43,7 @@ public protocol ChipStoreProtocol: AnyObject, Sendable {
 public final class UserDefaultsChipStore: ChipStoreProtocol, @unchecked Sendable {
 
     private let defaults: UserDefaults
+    private let lock = NSRecursiveLock()
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -43,45 +55,101 @@ public final class UserDefaultsChipStore: ChipStoreProtocol, @unchecked Sendable
     }
 
     public var chipBalance: Int {
-        get { defaults.integer(forKey: PersistenceKeys.chipBalance) }
-        set { defaults.set(newValue, forKey: PersistenceKeys.chipBalance) }
+        get { lock.withLock { readEconomyState().balance } }
+        set {
+            lock.withLock {
+                let state = readEconomyState()
+                writeEconomyState(balance: newValue, transactionIDs: state.transactionIDs)
+            }
+        }
     }
 
     public var hasReceivedStarterBonus: Bool {
-        get { defaults.bool(forKey: PersistenceKeys.hasReceivedStarterBonus) }
-        set { defaults.set(newValue, forKey: PersistenceKeys.hasReceivedStarterBonus) }
+        get { lock.withLock { defaults.bool(forKey: PersistenceKeys.hasReceivedStarterBonus) } }
+        set { lock.withLock { defaults.set(newValue, forKey: PersistenceKeys.hasReceivedStarterBonus) } }
     }
 
     public var hasReceivedSecondChanceBonus: Bool {
-        get { defaults.bool(forKey: PersistenceKeys.hasReceivedSecondChanceBonus) }
-        set { defaults.set(newValue, forKey: PersistenceKeys.hasReceivedSecondChanceBonus) }
+        get { lock.withLock { defaults.bool(forKey: PersistenceKeys.hasReceivedSecondChanceBonus) } }
+        set { lock.withLock { defaults.set(newValue, forKey: PersistenceKeys.hasReceivedSecondChanceBonus) } }
     }
 
     public var totalHandsPlayed: Int {
-        get { defaults.integer(forKey: PersistenceKeys.totalHandsPlayed) }
-        set { defaults.set(newValue, forKey: PersistenceKeys.totalHandsPlayed) }
+        get { lock.withLock { defaults.integer(forKey: PersistenceKeys.totalHandsPlayed) } }
+        set { lock.withLock { defaults.set(newValue, forKey: PersistenceKeys.totalHandsPlayed) } }
     }
 
     public var processedTransactionIDs: Set<String> {
-        get {
-            let array = defaults.array(forKey: PersistenceKeys.processedTransactionIDs) as? [String] ?? []
-            return Set(array)
-        }
+        get { lock.withLock { readEconomyState().transactionIDs } }
         set {
             // Sort on write so the underlying array is stable across writes —
             // makes the persisted shape diff-friendly when inspecting plists
             // and avoids spurious "value changed" KVO callbacks if Apple
             // ever adds plist-equality observation.
-            defaults.set(Array(newValue).sorted(), forKey: PersistenceKeys.processedTransactionIDs)
+            lock.withLock {
+                let state = readEconomyState()
+                writeEconomyState(balance: state.balance, transactionIDs: newValue)
+            }
         }
     }
 
+    public func adjustChipBalance(by delta: Int) -> Bool {
+        lock.withLock {
+            let state = readEconomyState()
+            let updated = state.balance + delta
+            guard updated >= 0 else { return false }
+            writeEconomyState(balance: updated, transactionIDs: state.transactionIDs)
+            return true
+        }
+    }
+
+    public func creditPurchase(transactionID: String, amount: Int) -> Bool {
+        lock.withLock {
+            let state = readEconomyState()
+            guard !state.transactionIDs.contains(transactionID) else { return false }
+            let updatedBalance = state.balance + amount
+            guard updatedBalance >= 0 else { return false }
+            var ids = state.transactionIDs
+            ids.insert(transactionID)
+            writeEconomyState(balance: updatedBalance, transactionIDs: ids)
+            return true
+        }
+    }
+
+    private func readEconomyState() -> (balance: Int, transactionIDs: Set<String>) {
+        if let state = defaults.dictionary(forKey: PersistenceKeys.economyState),
+           let balance = state["balance"] as? Int,
+           let transactionIDs = state["processedTransactionIDs"] as? [String] {
+            return (balance, Set(transactionIDs))
+        }
+
+        // One-time compatibility path for installs created before the
+        // combined economy value existed. The next mutation persists the
+        // migrated state under `economyState`.
+        let legacyBalance = defaults.integer(forKey: PersistenceKeys.chipBalance)
+        let legacyIDs = defaults.array(forKey: PersistenceKeys.processedTransactionIDs) as? [String] ?? []
+        return (legacyBalance, Set(legacyIDs))
+    }
+
+    private func writeEconomyState(balance: Int, transactionIDs: Set<String>) {
+        defaults.set(
+            [
+                "balance": balance,
+                "processedTransactionIDs": Array(transactionIDs).sorted()
+            ],
+            forKey: PersistenceKeys.economyState
+        )
+    }
+
     public func reset() {
-        defaults.removeObject(forKey: PersistenceKeys.chipBalance)
-        defaults.removeObject(forKey: PersistenceKeys.hasReceivedStarterBonus)
-        defaults.removeObject(forKey: PersistenceKeys.hasReceivedSecondChanceBonus)
-        defaults.removeObject(forKey: PersistenceKeys.totalHandsPlayed)
-        defaults.removeObject(forKey: PersistenceKeys.processedTransactionIDs)
+        lock.withLock {
+            defaults.removeObject(forKey: PersistenceKeys.chipBalance)
+            defaults.removeObject(forKey: PersistenceKeys.economyState)
+            defaults.removeObject(forKey: PersistenceKeys.hasReceivedStarterBonus)
+            defaults.removeObject(forKey: PersistenceKeys.hasReceivedSecondChanceBonus)
+            defaults.removeObject(forKey: PersistenceKeys.totalHandsPlayed)
+            defaults.removeObject(forKey: PersistenceKeys.processedTransactionIDs)
+        }
     }
 }
 
@@ -90,11 +158,33 @@ public final class UserDefaultsChipStore: ChipStoreProtocol, @unchecked Sendable
 /// runs or into the real user's defaults database.
 public final class InMemoryChipStore: ChipStoreProtocol, @unchecked Sendable {
 
-    public var chipBalance: Int
-    public var hasReceivedStarterBonus: Bool
-    public var hasReceivedSecondChanceBonus: Bool
-    public var totalHandsPlayed: Int
-    public var processedTransactionIDs: Set<String>
+    private let lock = NSRecursiveLock()
+    private var storedChipBalance: Int
+    private var storedHasReceivedStarterBonus: Bool
+    private var storedHasReceivedSecondChanceBonus: Bool
+    private var storedTotalHandsPlayed: Int
+    private var storedProcessedTransactionIDs: Set<String>
+
+    public var chipBalance: Int {
+        get { lock.withLock { storedChipBalance } }
+        set { lock.withLock { storedChipBalance = newValue } }
+    }
+    public var hasReceivedStarterBonus: Bool {
+        get { lock.withLock { storedHasReceivedStarterBonus } }
+        set { lock.withLock { storedHasReceivedStarterBonus = newValue } }
+    }
+    public var hasReceivedSecondChanceBonus: Bool {
+        get { lock.withLock { storedHasReceivedSecondChanceBonus } }
+        set { lock.withLock { storedHasReceivedSecondChanceBonus = newValue } }
+    }
+    public var totalHandsPlayed: Int {
+        get { lock.withLock { storedTotalHandsPlayed } }
+        set { lock.withLock { storedTotalHandsPlayed = newValue } }
+    }
+    public var processedTransactionIDs: Set<String> {
+        get { lock.withLock { storedProcessedTransactionIDs } }
+        set { lock.withLock { storedProcessedTransactionIDs = newValue } }
+    }
 
     public init(
         chipBalance: Int = 0,
@@ -103,18 +193,38 @@ public final class InMemoryChipStore: ChipStoreProtocol, @unchecked Sendable {
         totalHandsPlayed: Int = 0,
         processedTransactionIDs: Set<String> = []
     ) {
-        self.chipBalance = chipBalance
-        self.hasReceivedStarterBonus = hasReceivedStarterBonus
-        self.hasReceivedSecondChanceBonus = hasReceivedSecondChanceBonus
-        self.totalHandsPlayed = totalHandsPlayed
-        self.processedTransactionIDs = processedTransactionIDs
+        self.storedChipBalance = chipBalance
+        self.storedHasReceivedStarterBonus = hasReceivedStarterBonus
+        self.storedHasReceivedSecondChanceBonus = hasReceivedSecondChanceBonus
+        self.storedTotalHandsPlayed = totalHandsPlayed
+        self.storedProcessedTransactionIDs = processedTransactionIDs
+    }
+
+    public func adjustChipBalance(by delta: Int) -> Bool {
+        lock.withLock {
+            let updated = storedChipBalance + delta
+            guard updated >= 0 else { return false }
+            storedChipBalance = updated
+            return true
+        }
+    }
+
+    public func creditPurchase(transactionID: String, amount: Int) -> Bool {
+        lock.withLock {
+            guard !storedProcessedTransactionIDs.contains(transactionID) else { return false }
+            guard adjustChipBalance(by: amount) else { return false }
+            storedProcessedTransactionIDs.insert(transactionID)
+            return true
+        }
     }
 
     public func reset() {
-        chipBalance = 0
-        hasReceivedStarterBonus = false
-        hasReceivedSecondChanceBonus = false
-        totalHandsPlayed = 0
-        processedTransactionIDs = []
+        lock.withLock {
+            storedChipBalance = 0
+            storedHasReceivedStarterBonus = false
+            storedHasReceivedSecondChanceBonus = false
+            storedTotalHandsPlayed = 0
+            storedProcessedTransactionIDs = []
+        }
     }
 }

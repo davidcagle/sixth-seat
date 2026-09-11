@@ -111,9 +111,35 @@ struct UserDefaultsChipStoreTests {
         #expect(store.processedTransactionIDs.isEmpty)
 
         store.processedTransactionIDs = ["tx-z", "tx-a", "tx-m"]
-        let stored = defaults.array(forKey: PersistenceKeys.processedTransactionIDs) as? [String]
+        let economy = defaults.dictionary(forKey: PersistenceKeys.economyState)
+        let stored = economy?["processedTransactionIDs"] as? [String]
         #expect(stored == ["tx-a", "tx-m", "tx-z"]) // sorted on write for stable storage shape
         #expect(store.processedTransactionIDs == ["tx-a", "tx-m", "tx-z"])
+    }
+
+    @Test("Legacy balance and transaction IDs migrate into one economy value on mutation")
+    func legacyEconomyStateMigrates() {
+        let defaults = Self.freshDefaults()
+        defaults.set(750, forKey: PersistenceKeys.chipBalance)
+        defaults.set(["tx-legacy"], forKey: PersistenceKeys.processedTransactionIDs)
+        defaults.set(true, forKey: PersistenceKeys.hasReceivedStarterBonus)
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.adjustChipBalance(by: 250))
+        let economy = defaults.dictionary(forKey: PersistenceKeys.economyState)
+        #expect(economy?["balance"] as? Int == 1_000)
+        #expect(economy?["processedTransactionIDs"] as? [String] == ["tx-legacy"])
+    }
+
+    @Test("Purchase persists balance and transaction ID in the same economy value")
+    func purchasePersistsCombinedEconomyState() {
+        let defaults = Self.freshDefaults()
+        let store = UserDefaultsChipStore(defaults: defaults)
+
+        #expect(store.creditPurchase(transactionID: "tx-combined", amount: 10_000))
+        let economy = defaults.dictionary(forKey: PersistenceKeys.economyState)
+        #expect(economy?["balance"] as? Int == 15_000)
+        #expect(economy?["processedTransactionIDs"] as? [String] == ["tx-combined"])
     }
 
     @Test("reset() clears the IAP idempotency key alongside the chip-economy keys")
@@ -128,6 +154,7 @@ struct UserDefaultsChipStoreTests {
         #expect(store.processedTransactionIDs.isEmpty)
         #expect(store.chipBalance == 0)
         #expect(defaults.object(forKey: PersistenceKeys.processedTransactionIDs) == nil)
+        #expect(defaults.object(forKey: PersistenceKeys.economyState) == nil)
     }
 }
 

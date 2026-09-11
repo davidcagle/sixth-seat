@@ -55,6 +55,53 @@ struct ChipPurchaseProcessorTests {
         #expect(store.chipBalance == 10_000) // unchanged from the first credit
     }
 
+    @Test("Concurrent delivery of one transaction credits exactly once")
+    func concurrentDuplicateDeliveryCreditsOnce() async {
+        let store = InMemoryChipStore()
+
+        let outcomes = await withTaskGroup(of: ChipPurchaseProcessor.Outcome.self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    ChipPurchaseProcessor.credit(
+                        transactionID: "tx-concurrent-dup",
+                        bundle: bundle,
+                        isRestore: false,
+                        store: store
+                    )
+                }
+            }
+            var collected: [ChipPurchaseProcessor.Outcome] = []
+            for await outcome in group { collected.append(outcome) }
+            return collected
+        }
+
+        #expect(outcomes.filter { $0 == .credited(amount: 10_000) }.count == 1)
+        #expect(outcomes.filter { $0 == .alreadyProcessed }.count == 99)
+        #expect(store.chipBalance == 10_000)
+        #expect(store.processedTransactionIDs == ["tx-concurrent-dup"])
+    }
+
+    @Test("Concurrent distinct transactions preserve every credit and ID")
+    func concurrentDistinctTransactionsAllCredit() async {
+        let store = InMemoryChipStore()
+
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<100 {
+                group.addTask {
+                    _ = ChipPurchaseProcessor.credit(
+                        transactionID: "tx-concurrent-\(index)",
+                        bundle: bundle,
+                        isRestore: false,
+                        store: store
+                    )
+                }
+            }
+        }
+
+        #expect(store.chipBalance == 1_000_000)
+        #expect(store.processedTransactionIDs.count == 100)
+    }
+
     @Test("alreadyProcessed leaves the balance untouched")
     func alreadyProcessedIsAFullNoOp() {
         let store = InMemoryChipStore(
