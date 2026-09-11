@@ -4,17 +4,15 @@ Running session log: what shipped, what's next, open items. Updated every sessio
 
 ---
 
-## ⏸ PAUSED — LLC Enrollment in Progress
+## ⏸ PAUSED — LLC Organization Enrollment Awaiting Apple
 
 **Pause date:** 2026-06-25 — the day David received the Apple App Review rejection ("simulated gambling apps are no longer permitted from individual developer accounts"). LLC formation, EIN issuance, the LLC Apple ID, and the DUNS submission all happened the same day in rapid succession, so the pause start and the infrastructure-in-motion date are identical: **2026-06-25**.
 
-The app is mid-submission and on hold pending Apple Developer **organization** account enrollment under the new LLC. **Do not modify code, do not archive new builds, do not change ASC configuration.** Build 5 in TestFlight is the build that will ship.
+The app is mid-submission and on hold pending Apple Developer **organization** account enrollment under the new LLC. David submitted the LLC developer-account application on **2026-09-10** and is awaiting Apple's response. A targeted IAP credit-integrity fix was authorized and prepared locally as **Build 6**. **Do not upload Build 6 or change App Store Connect configuration until the organization account is approved and the app-transfer path is confirmed.**
 
-**Expected resume window:**
-- Earliest: **~2026-07-30** (roughly 5 weeks from pause)
-- Latest: **~2026-08-13** (roughly 6–7 weeks from pause)
+**Current enrollment status:** Apple Developer organization application submitted **2026-09-10**; response pending.
 
-**Status (all as of 2026-06-25):**
+**Formation status (recorded 2026-06-25):**
 - LLC formed: 6th Seat Development LLC (Arkansas, single-member, member-managed)
 - Northwest Registered Agent active (~$125/year)
 - EIN obtained from IRS
@@ -25,7 +23,7 @@ The app is mid-submission and on hold pending Apple Developer **organization** a
 1. DUNS issues
 2. Apple Developer organization enrollment ($99/year, separate from individual account, 1–2 weeks Apple verification)
 3. App transfer from individual → LLC account (1–3 business days once both accounts exist)
-4. Resubmit Build 5 under LLC account
+4. Upload and submit Build 6 under the LLC account
 5. Apple App Review (1–3 days typical)
 6. Manual release
 
@@ -35,15 +33,15 @@ The app is mid-submission and on hold pending Apple Developer **organization** a
 - [ ] **App transferred to LLC account** — 6th Seat Hold'em moved from the individual developer account to the LLC organization account
 - [ ] **ASC IAPs/metadata verified under LLC account** — in-app purchases, pricing, and App Store listing metadata confirmed intact in App Store Connect under the LLC account post-transfer
 
-When all four boxes are checked, the pause is liftable and Build 5 can be resubmitted under the LLC account.
+When all four boxes are checked, the pause is liftable and Build 6 can be uploaded and submitted under the LLC account.
 
-**Engagement note:** David is intentionally not engaging with this project's codebase during the pause. If a code-related question about the codebase arises in a chat session, **defer it** — do not start coding work. If something genuinely blocks resume (e.g., Apple requests a code change as a condition of the LLC transfer or org review), **flag it explicitly** rather than acting on it.
+**Engagement note:** The Build 6 IAP integrity work was an explicitly authorized exception to the code freeze. Keep the project frozen after that preparation unless David authorizes another scoped change or Apple requires one during enrollment, transfer, or review.
 
-**Do not start new code sessions on this project until the Resume readiness checklist above is fully checked.** See SPEC.md "Distribution Account Decision" section for full reasoning.
+**Do not start new code sessions on this project without David's explicit authorization until the Resume readiness checklist above is fully checked.** See SPEC.md "Distribution Account Decision" section for full reasoning.
 
 ---
 
-**Last updated:** 2026-06-25 (Session 40b — added concrete pause start date, expected resume window, and the four-item Resume readiness checklist to the PAUSED banner)
+**Last updated:** 2026-09-10 (LLC Apple Developer organization application submitted; Build 6 IAP integrity fix prepared locally, upload deferred pending approval)
 
 **Previous update:** 2026-06-09 (Session 39 — surfaced real StoreKit errors in the IAP flow: cause-specific Chip Shop copy via `ChipShopLogic.purchaseFailureMessage`, `StoreKitError`/`Product.PurchaseError` mapping, `iap.purchase.failed` now carries `error_type` + `error_description`, and TelemetryDeck failures now also write OSLog so Console works on a Release/TestFlight device)
 
